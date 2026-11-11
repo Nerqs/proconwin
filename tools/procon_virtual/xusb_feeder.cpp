@@ -52,6 +52,10 @@ bool Ioctl(HANDLE h, DWORD code, const void* in, DWORD in_len, void* out, DWORD 
 XusbFeeder::~XusbFeeder() { Close(); }
 
 bool XusbFeeder::Open(std::string& error) {
+  Close();
+  large_ = 0;
+  small_ = 0;
+  player_ = -1;
   std::wstring path = FindDevicePath();
   if (path.empty()) {
     error = "Não encontrei o driver ProconWinXusb. Instale com driver\\instalar.ps1 "

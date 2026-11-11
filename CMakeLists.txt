@@ -18,6 +18,7 @@ add_library(procon_logic STATIC
   core/src/protocol.cpp
   core/src/mapping.cpp
   core/src/gyro.cpp
+  core/src/steam.cpp
 )
 target_include_directories(procon_logic PUBLIC core/include)
 
@@ -48,6 +49,7 @@ if(PROCON_BUILD_TOOLS)
     add_executable(procon_virtual
       tools/procon_virtual/main.cpp
       tools/procon_virtual/xusb_feeder.cpp
+      tools/procon_virtual/processes.cpp
     )
     target_include_directories(procon_virtual PRIVATE driver/include)
     target_link_libraries(procon_virtual PRIVATE procon_device setupapi)

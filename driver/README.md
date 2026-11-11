@@ -27,11 +27,15 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\instalar.ps1
    ```
-4. Feche a Steam, conecte o Pro Controller e rode:
+4. Conecte o Pro Controller e rode:
    ```powershell
    .\procon_virtual.exe
    ```
    Opções: `--gyro mouse` (giroscópio move o mouse), `--gyro stick` (giroscópio soma no analógico direito), `--sens N` (sensibilidade), `--layout nome` (A da Nintendo = A do Xbox).
+
+   **Steam:** com a Steam aberta você não precisa fechar mais nada. Quando um jogo aberto pela Steam está rodando, o `procon_virtual` pausa sozinho e deixa o Steam Input usar o controle, sem entrada dobrada. Quando o jogo fecha, ele volta. A tecla **S** liga o modo "Estou usando a Steam" (fica pausado o tempo todo, por exemplo no Big Picture). Também dá para escolher na linha de comando: `--steam auto` (padrão), `--steam sempre` ou `--steam nunca`.
+
+   Se o controle desconectar ou for desligado (segure HOME por 3 s no Bluetooth), o programa espera ele voltar.
 5. Teste em `joy.cpl` (Win+R) ou num jogo. No Gerenciador de Dispositivos, o driver aparece em **Dispositivos do sistema** como "ProconWin - controle de Xbox 360 virtual".
 
 ## Remover

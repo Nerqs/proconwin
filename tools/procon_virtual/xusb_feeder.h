@@ -23,6 +23,7 @@ class XusbFeeder {
   // Acha o driver, vira o "dono" do controle virtual e liga ele no XInput.
   bool Open(std::string& error);
   void Close();
+  bool IsOpen() const { return device_ != INVALID_HANDLE_VALUE; }
 
   bool Submit(const ProconwinReport& report);
 
