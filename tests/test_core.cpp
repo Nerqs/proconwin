@@ -182,7 +182,9 @@ static void TestSettings() {
   CHECK(ParseSettings(SerializeSettings(def)) == def);
 
   Settings s;
-  s.nintendo_layout = true;
+  s.buttons = NintendoLabelMap();
+  s.buttons[static_cast<size_t>(Source::ZR)] = Target::A;
+  s.profile = "Fortnite";
   s.gyro = GyroMode::RightStick;
   s.mouse_pixels_per_degree = 12.5f;
   s.stick_full_speed_dps = 500;
@@ -204,6 +206,30 @@ static void TestSettings() {
   // Valor fora da faixa é ignorado.
   CHECK(ParseSettings("velocidade_analogico = -5").stick_full_speed_dps ==
         def.stick_full_speed_dps);
+
+  // Arquivo antigo com "layout = nome" e um ajuste por cima.
+  Settings old = ParseSettings("layout = nome\nbotao.capture = a\nbotao.captura = lb\nbotao.zl = xyz\n");
+  CHECK(old.buttons[static_cast<size_t>(Source::A)] == Target::A);
+  CHECK(old.buttons[static_cast<size_t>(Source::Capture)] == Target::LB);
+  CHECK(old.buttons[static_cast<size_t>(Source::ZL)] == Target::LT);  // valor inválido: fica
+
+  // Perfil: troca botões e giroscópio, mantém Steam e luz.
+  Settings cur;
+  cur.steam = SteamMode::Never;
+  cur.home_light = false;
+  ApplyProfile(s, cur);
+  CHECK(cur.buttons == s.buttons && cur.gyro == s.gyro && cur.stick_full_speed_dps == 500);
+  CHECK(cur.steam == SteamMode::Never && !cur.home_light);
+
+  CHECK(SanitizeProfileName("  Jogo: Tiro/2*  ") == "Jogo Tiro2");
+  CHECK(SanitizeProfileName("...") == "");
+  CHECK(SanitizeProfileName("a.") == "a");
+
+  // Nomes do arquivo existem para todos os botões e voltam iguais.
+  for (size_t i = 0; i < static_cast<size_t>(Source::Count); ++i) {
+    Source back;
+    CHECK(SourceFromId(SourceId(static_cast<Source>(i)), back) && back == static_cast<Source>(i));
+  }
 
   GyroSettings g = ToGyroSettings(s);
   CHECK(g.mode == GyroMode::RightStick && g.stick_full_speed_dps == 500 && g.invert_y);

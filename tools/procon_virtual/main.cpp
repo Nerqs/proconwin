@@ -61,8 +61,8 @@ bool ParseArgs(int argc, char** argv, Settings& o) {
     };
     std::string v;
     if (a == "--layout" && next(v)) {
-      if (v == "nome") o.nintendo_layout = true;
-      else if (v == "posicao") o.nintendo_layout = false;
+      if (v == "nome") o.buttons = NintendoLabelMap();
+      else if (v == "posicao") o.buttons = DefaultPositionalMap();
       else return false;
     } else if (a == "--gyro" && next(v)) {
       if (v == "off") o.gyro = GyroMode::Off;
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
   std::signal(SIGINT, OnSignal);
 
   std::printf("Layout: %s | giroscópio: %s\n",
-              cfg.nintendo_layout ? "pelo nome" : "pela posição",
+              cfg.buttons == NintendoLabelMap() ? "pelo nome" : "pela posição",
               cfg.gyro == GyroMode::Off     ? "desligado"
               : cfg.gyro == GyroMode::Mouse ? "mouse"
                                             : "analógico direito");

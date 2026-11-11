@@ -61,8 +61,12 @@ if(PROCON_BUILD_TOOLS)
     target_link_libraries(procon_virtual PRIVATE procon_engine)
 
     # App na bandeja (sem janela de console).
-    add_executable(procon_tray WIN32 tools/procon_tray/main.cpp)
-    target_link_libraries(procon_tray PRIVATE procon_engine shell32 ole32 advapi32 user32)
+    add_executable(procon_tray WIN32
+      tools/procon_tray/main.cpp
+      tools/procon_tray/storage.cpp
+      tools/procon_tray/editor.cpp
+      tools/procon_tray/procon_tray.manifest)
+    target_link_libraries(procon_tray PRIVATE procon_engine shell32 ole32 advapi32 user32 gdi32)
 
     add_executable(procon_install tools/procon_install/main.cpp)
     target_link_libraries(procon_install PRIVATE setupapi newdev shell32)

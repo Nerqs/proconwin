@@ -52,6 +52,15 @@ XboxState MapToXbox(const InputState& in, const ButtonMap& map);
 int16_t AxisToXbox(float v);
 const char* SourceName(Source s);
 const char* TargetName(Target t);
+
+// Bit do Pro Controller (InputState::buttons) de cada botão físico.
+uint32_t SourceBit(Source s);
+
+// Nomes sem acento usados no arquivo de configuração ("zr", "rt", "nada").
+const char* SourceId(Source s);
+const char* TargetId(Target t);
+bool SourceFromId(const std::string& id, Source& out);
+bool TargetFromId(const std::string& id, Target& out);
 std::string XboxButtonsToString(uint16_t buttons);
 
 }  // namespace procon

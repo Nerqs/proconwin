@@ -49,7 +49,7 @@ const char* SteamName(SteamMode m) {
 }  // namespace
 
 bool Settings::operator==(const Settings& o) const {
-  return nintendo_layout == o.nintendo_layout && gyro == o.gyro &&
+  return buttons == o.buttons && profile == o.profile && gyro == o.gyro &&
          mouse_pixels_per_degree == o.mouse_pixels_per_degree &&
          stick_full_speed_dps == o.stick_full_speed_dps && gyro_invert_x == o.gyro_invert_x &&
          gyro_invert_y == o.gyro_invert_y && steam == o.steam && home_light == o.home_light;
@@ -58,7 +58,6 @@ bool Settings::operator==(const Settings& o) const {
 std::string SerializeSettings(const Settings& s) {
   std::ostringstream o;
   o << "# Configurações do ProconWin. Pode editar à mão com o programa fechado.\n";
-  o << "layout = " << (s.nintendo_layout ? "nome" : "posicao") << "\n";
   o << "giroscopio = " << GyroName(s.gyro) << "\n";
   o << "sensibilidade_mouse = " << s.mouse_pixels_per_degree << "\n";
   o << "velocidade_analogico = " << s.stick_full_speed_dps << "\n";
@@ -66,6 +65,11 @@ std::string SerializeSettings(const Settings& s) {
   o << "inverter_y = " << (s.gyro_invert_y ? "sim" : "nao") << "\n";
   o << "steam = " << SteamName(s.steam) << "\n";
   o << "luz_home = " << (s.home_light ? "sim" : "nao") << "\n";
+  if (!s.profile.empty()) o << "perfil = " << s.profile << "\n";
+  o << "# Botões: botao.<botão da Nintendo> = <botão do Xbox>\n";
+  for (size_t i = 0; i < s.buttons.size(); ++i) {
+    o << "botao." << SourceId(static_cast<Source>(i)) << " = " << TargetId(s.buttons[i]) << "\n";
+  }
   return o.str();
 }
 
@@ -82,8 +86,10 @@ Settings ParseSettings(const std::string& text) {
     std::string v = Trim(line.substr(eq + 1));
 
     if (key == "layout") {
-      if (v == "nome") s.nintendo_layout = true;
-      else if (v == "posicao") s.nintendo_layout = false;
+      // Arquivos antigos: o layout define o mapa inteiro. Linhas botao.*
+      // que vierem depois ajustam em cima dele.
+      if (v == "nome") s.buttons = NintendoLabelMap();
+      else if (v == "posicao") s.buttons = DefaultPositionalMap();
     } else if (key == "giroscopio") {
       if (v == "desligado") s.gyro = GyroMode::Off;
       else if (v == "mouse") s.gyro = GyroMode::Mouse;
@@ -102,9 +108,40 @@ Settings ParseSettings(const std::string& text) {
       else if (v == "nunca") s.steam = SteamMode::Never;
     } else if (key == "luz_home") {
       ParseBool(v, s.home_light);
+    } else if (key == "perfil") {
+      s.profile = SanitizeProfileName(v);
+    } else if (key.rfind("botao.", 0) == 0) {
+      Source src;
+      Target dst;
+      if (SourceFromId(key.substr(6), src) && TargetFromId(v, dst)) {
+        s.buttons[static_cast<size_t>(src)] = dst;
+      }
     }
   }
   return s;
+}
+
+void ApplyProfile(const Settings& p, Settings& c) {
+  c.buttons = p.buttons;
+  c.gyro = p.gyro;
+  c.mouse_pixels_per_degree = p.mouse_pixels_per_degree;
+  c.stick_full_speed_dps = p.stick_full_speed_dps;
+  c.gyro_invert_x = p.gyro_invert_x;
+  c.gyro_invert_y = p.gyro_invert_y;
+}
+
+std::string SanitizeProfileName(const std::string& name) {
+  std::string out;
+  for (char ch : name) {
+    unsigned char c = static_cast<unsigned char>(ch);
+    if (c < 32 || std::string("\\/:*?\"<>|#=").find(ch) != std::string::npos) continue;
+    out += ch;
+  }
+  out = Trim(out);
+  // "." e ".." não são nomes de arquivo válidos; nem nomes terminados em ponto.
+  while (!out.empty() && out.back() == '.') out.pop_back();
+  if (out.size() > 60) out.resize(60);
+  return out;
 }
 
 GyroSettings ToGyroSettings(const Settings& s) {

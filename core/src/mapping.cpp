@@ -108,6 +108,45 @@ const char* TargetName(Target t) {
   return names[static_cast<size_t>(t)];
 }
 
+uint32_t SourceBit(Source s) { return kSourceBits[Idx(s)]; }
+
+namespace {
+const char* const kSourceIds[] = {"a",     "b",    "x",    "y",    "l",        "r",
+                                  "zl",    "zr",   "menos", "mais", "l3",      "r3",
+                                  "home",  "captura", "cima", "baixo", "esquerda", "direita"};
+const char* const kTargetIds[] = {"nada",  "a",     "b",     "x",       "y",
+                                  "lb",    "rb",    "lt",    "rt",      "back",
+                                  "start", "ls",    "rs",    "guide",   "cima",
+                                  "baixo", "esquerda", "direita"};
+static_assert(sizeof(kSourceIds) / sizeof(kSourceIds[0]) == Idx(Source::Count), "kSourceIds");
+static_assert(sizeof(kTargetIds) / sizeof(kTargetIds[0]) ==
+                  static_cast<size_t>(Target::Count),
+              "kTargetIds");
+}  // namespace
+
+const char* SourceId(Source s) { return kSourceIds[Idx(s)]; }
+const char* TargetId(Target t) { return kTargetIds[static_cast<size_t>(t)]; }
+
+bool SourceFromId(const std::string& id, Source& out) {
+  for (size_t i = 0; i < Idx(Source::Count); ++i) {
+    if (id == kSourceIds[i]) {
+      out = static_cast<Source>(i);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool TargetFromId(const std::string& id, Target& out) {
+  for (size_t i = 0; i < static_cast<size_t>(Target::Count); ++i) {
+    if (id == kTargetIds[i]) {
+      out = static_cast<Target>(i);
+      return true;
+    }
+  }
+  return false;
+}
+
 std::string XboxButtonsToString(uint16_t b) {
   struct Name { uint16_t bit; const char* name; };
   static const Name names[] = {
