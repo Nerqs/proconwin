@@ -2,3 +2,6 @@ build/
 out/
 .vs/
 *.user
+DMF/
+driver/x64/
+driver/ProconWinBus/x64/

@@ -27,3 +27,33 @@ jobs:
         run: cmake --build build
       - name: Testes
         run: ctest --test-dir build --output-on-failure
+
+  driver:
+    runs-on: windows-2022
+    env:
+      DMF_TAG: v1.1.99
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - name: Baixar o DMF
+        run: git clone --depth 1 --branch $env:DMF_TAG https://github.com/microsoft/DMF DMF
+      - name: Compilar o DMF (DmfK)
+        run: msbuild DMF\Dmf.sln /m /t:"DmfK;DmfKModules_Template" /p:Configuration=Release /p:Platform=x64
+      - name: Compilar o driver
+        run: msbuild driver\ProconWinBus.sln /m /p:Configuration=Release /p:Platform=x64 /p:DmfRootPath=$env:GITHUB_WORKSPACE\DMF\
+      - name: Compilar as ferramentas
+        run: |
+          cmake -S . -B build
+          cmake --build build --config Release --target procon_proto procon_virtual procon_install
+      - name: Montar o pacote
+        run: |
+          New-Item -ItemType Directory -Force pacote\driver | Out-Null
+          Get-ChildItem -Recurse driver\x64\Release -Include *.sys,*.inf,*.cat,*.cer,*.pdb | Copy-Item -Destination pacote\driver
+          Copy-Item build\Release\procon_proto.exe, build\Release\procon_virtual.exe, build\Release\procon_install.exe pacote\
+          Copy-Item driver\README.md pacote\LEIA-ME.md
+          Copy-Item third_party\licenses -Recurse pacote\licencas
+          Get-ChildItem -Recurse pacote | Select-Object FullName
+      - uses: actions/upload-artifact@v4
+        with:
+          name: proconwin-windows-x64
+          path: pacote
