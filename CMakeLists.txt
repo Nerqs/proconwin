@@ -24,6 +24,9 @@ target_include_directories(procon_logic PUBLIC core/include)
 if(PROCON_BUILD_TOOLS)
   # hidapi: baixado automaticamente na primeira compilação.
   include(FetchContent)
+  # O hidapi 0.14.0 declara uma versão mínima antiga do CMake, que o CMake 4
+  # (já usado no GitHub Actions e em versões novas do Visual Studio) recusa.
+  set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
   set(HIDAPI_WITH_LIBUSB OFF CACHE BOOL "" FORCE)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
   FetchContent_Declare(
