@@ -1,4 +1,4 @@
-#include "controller.h"
+#include "procon/controller.h"
 
 #include <hidapi.h>
 

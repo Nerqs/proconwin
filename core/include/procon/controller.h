@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "protocol.h"
+#include "procon/protocol.h"
 
 struct hid_device_;
 typedef struct hid_device_ hid_device;
