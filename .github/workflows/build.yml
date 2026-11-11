@@ -28,7 +28,9 @@ jobs:
       - name: Testes
         run: ctest --test-dir build --output-on-failure
 
-  driver:
+  # Driver de kernel (ProconWinBus): guardado para quando houver assinatura
+  # da Microsoft. Só compila, não entra no pacote.
+  driver-kernel:
     runs-on: windows-2022
     env:
       DMF_TAG: v1.1.99
@@ -48,6 +50,17 @@ jobs:
         run: msbuild DMF\Dmf.sln /m /t:"DmfK;DmfKModules_Template" /p:Configuration=Release /p:Platform=x64
       - name: Compilar o driver
         run: msbuild driver\ProconWinBus.sln /m /p:Configuration=Release /p:Platform=x64 /p:DmfRootPath=$env:GITHUB_WORKSPACE\DMF\
+
+  # Driver em modo usuário (ProconWinXusb) + ferramentas = pacote para instalar.
+  driver:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+      - name: Compilar o driver
+        run: msbuild driver\ProconWinXusb\ProconWinXusb.vcxproj /m /p:Configuration=Release /p:Platform=x64
       - name: Compilar as ferramentas
         run: |
           cmake -S . -B build
@@ -55,8 +68,19 @@ jobs:
       - name: Montar o pacote
         run: |
           New-Item -ItemType Directory -Force pacote\driver | Out-Null
-          Get-ChildItem -Recurse driver\bin -Include *.sys,*.inf,*.cat,*.cer,*.pdb | Copy-Item -Destination pacote\driver
+          $out = 'driver\bin\xusb\Release'
+          Get-ChildItem -Recurse $out | Select-Object FullName
+          # INF com a versão já carimbada pelo stampinf (fica na pasta do pacote
+          # se existir, senão na pasta de saída).
+          $inf = Get-ChildItem -Recurse $out -Filter ProconWinXusb.inf | Sort-Object { $_.FullName.Length } -Descending | Select-Object -First 1
+          $dll = Get-ChildItem -Recurse $out -Filter ProconWinXusb.dll | Select-Object -First 1
+          Copy-Item $inf.FullName, $dll.FullName pacote\driver
+          # Catálogo sem assinatura: o instalar.ps1 assina no PC do usuário.
+          $inf2cat = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter Inf2Cat.exe | Where-Object FullName -match '\\x86\\' | Sort-Object FullName -Descending | Select-Object -First 1
+          & $inf2cat.FullName /driver:pacote\driver /os:10_X64 /verbose
+          if ($LASTEXITCODE -ne 0) { throw "inf2cat falhou" }
           Copy-Item build\Release\procon_proto.exe, build\Release\procon_virtual.exe, build\Release\procon_install.exe pacote\
+          Copy-Item driver\instalar.ps1, driver\desinstalar.ps1 pacote\
           Copy-Item driver\README.md pacote\LEIA-ME.md
           Copy-Item third_party\licenses -Recurse pacote\licencas
           Get-ChildItem -Recurse pacote | Select-Object FullName

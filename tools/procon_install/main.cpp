@@ -1,11 +1,12 @@
-// procon_install: instala ou remove o driver ProconWinBus.
+// procon_install: instala ou remove o driver ProconWinXusb (controle virtual).
 //
 // Uso (em um terminal como Administrador):
-//   procon_install install <caminho\para\ProconWinBus.inf>
+//   procon_install install <caminho\para\ProconWinXusb.inf>
 //   procon_install uninstall
 //
-// O "install" cria o dispositivo raiz Root\ProconWinBus (se ainda não
-// existir) e instala o driver nele, como o devcon faz.
+// O "install" cria o dispositivo raiz Root\ProconWinXusb (se ainda não
+// existir) e instala o driver nele, como o devcon faz. Normalmente ele é
+// chamado pelo driver\instalar.ps1, que antes assina o pacote.
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -21,7 +22,7 @@
 
 namespace {
 
-constexpr wchar_t kHardwareId[] = L"Root\\ProconWinBus";
+constexpr wchar_t kHardwareId[] = L"Root\\ProconWinXusb";
 
 void PrintLastError(const char* what) {
   DWORD e = GetLastError();
@@ -102,8 +103,8 @@ int Install(const std::wstring& inf_arg) {
   if (!UpdateDriverForPlugAndPlayDevicesW(nullptr, kHardwareId, inf, INSTALLFLAG_FORCE, &reboot)) {
     PrintLastError("Instalar o driver");
     std::fprintf(stderr,
-                 "Confira se o modo de teste está ligado (bcdedit /set testsigning on + "
-                 "reiniciar) e se o certificado foi importado.\n");
+                 "Confira se o pacote foi assinado e o certificado local importado "
+                 "(rode o instalar.ps1 em vez de chamar o procon_install direto).\n");
     return 1;
   }
   std::printf("Driver instalado.%s\n", reboot ? " Reinicie o computador para concluir." : "");
@@ -124,8 +125,7 @@ int Uninstall() {
   }
   SetupDiDestroyDeviceInfoList(set);
   std::printf("%d dispositivo(s) removido(s).\n", removed);
-  std::printf("Para apagar o pacote do driver: pnputil /enum-drivers, ache o oemNN.inf do "
-              "ProconWinBus e rode pnputil /delete-driver oemNN.inf\n");
+  std::printf("Para apagar o pacote do driver e o certificado, use o desinstalar.ps1.\n");
   return 0;
 }
 
@@ -140,6 +140,6 @@ int wmain(int argc, wchar_t** argv) {
   if (argc == 3 && _wcsicmp(argv[1], L"install") == 0) return Install(argv[2]);
   if (argc == 2 && _wcsicmp(argv[1], L"uninstall") == 0) return Uninstall();
   std::fprintf(stderr,
-               "Uso:\n  procon_install install <ProconWinBus.inf>\n  procon_install uninstall\n");
+               "Uso:\n  procon_install install <ProconWinXusb.inf>\n  procon_install uninstall\n");
   return 1;
 }
