@@ -43,6 +43,8 @@
     <!-- A assinatura é feita no PC do usuário, com um certificado local
          (veja driver\instalar.ps1). Aqui só geramos o pacote. -->
     <SignMode>Off</SignMode>
+    <!-- O catálogo é gerado pela CI depois de juntar o INF e a DLL numa pasta só. -->
+    <EnableInf2cat>false</EnableInf2cat>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
     <UseDebugLibraries>true</UseDebugLibraries>
