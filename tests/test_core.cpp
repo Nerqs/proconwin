@@ -6,6 +6,7 @@
 #include "procon/gyro.h"
 #include "procon/mapping.h"
 #include "procon/protocol.h"
+#include "procon/steam.h"
 
 using namespace procon;
 
@@ -132,6 +133,48 @@ static void TestGyroStick() {
   CHECK(out.StickX() > 0.15f);
 }
 
+static void TestSteam() {
+  std::vector<ProcessEntry> ps = {
+      {4, 0, "System"},
+      {100, 4, "explorer.exe"},
+      {200, 100, "steam.exe"},
+      {210, 200, "steamwebhelper.exe"},
+      {211, 210, "steamwebhelper.exe"},
+      {220, 200, "GameOverlayUI.exe"},
+      {300, 100, "chrome.exe"},
+  };
+  // Só a Steam aberta, sem jogo.
+  CHECK(!FindSteamGame(ps));
+
+  // Jogo aberto direto pela Steam.
+  auto with_game = ps;
+  with_game.push_back({400, 200, "Hades.exe"});
+  std::string name;
+  CHECK(FindSteamGame(with_game, &name));
+  CHECK(name == "Hades.exe");
+
+  // Jogo que passa por um launcher (neto da Steam).
+  auto launcher = ps;
+  launcher.push_back({500, 200, "EALauncher.exe"});
+  launcher.push_back({501, 500, "Game.exe"});
+  CHECK(FindSteamGame(launcher));
+
+  // Jogo aberto fora da Steam (pelo Explorer) não conta.
+  auto outside = ps;
+  outside.push_back({600, 100, "FortniteClient-Win64-Shipping.exe"});
+  CHECK(!FindSteamGame(outside));
+
+  // Pai que já fechou (PID não existe mais) não conta.
+  auto orphan = ps;
+  orphan.push_back({700, 999, "Algo.exe"});
+  CHECK(!FindSteamGame(orphan));
+
+  CHECK(ShouldPause(SteamMode::Auto, true));
+  CHECK(!ShouldPause(SteamMode::Auto, false));
+  CHECK(ShouldPause(SteamMode::Always, false));
+  CHECK(!ShouldPause(SteamMode::Never, true));
+}
+
 int main() {
   TestRumble();
   TestSticks();
@@ -140,6 +183,7 @@ int main() {
   TestGyroCalibration();
   TestGyroMouse();
   TestGyroStick();
+  TestSteam();
   if (g_failures == 0) std::printf("Todos os testes passaram.\n");
   return g_failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
