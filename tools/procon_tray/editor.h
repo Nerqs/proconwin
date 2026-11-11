@@ -16,8 +16,9 @@ struct EditorCallbacks {
   std::function<uint32_t()> pressed_buttons;            // botões apertados agora
 };
 
-// Abre o editor (ou traz para frente, se já estiver aberto).
-void ShowButtonEditor(HINSTANCE inst, const EditorCallbacks& cb);
+// Abre o editor (ou traz para frente, se já estiver aberto). pc_view abre
+// direto nas teclas do modo computador.
+void ShowButtonEditor(HINSTANCE inst, const EditorCallbacks& cb, bool pc_view = false);
 
 // Janela do editor, para o laço de mensagens tratar Tab/Enter (ou nullptr).
 HWND ButtonEditorWindow();

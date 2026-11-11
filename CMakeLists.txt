@@ -20,6 +20,7 @@ add_library(procon_logic STATIC
   core/src/gyro.cpp
   core/src/steam.cpp
   core/src/settings.cpp
+  core/src/desktop.cpp
 )
 target_include_directories(procon_logic PUBLIC core/include)
 
@@ -52,9 +53,10 @@ if(PROCON_BUILD_TOOLS)
       tools/engine/engine.cpp
       tools/engine/xusb_feeder.cpp
       tools/engine/processes.cpp
+      tools/engine/desktop_input.cpp
     )
     target_include_directories(procon_engine PUBLIC tools/engine driver/include)
-    target_link_libraries(procon_engine PUBLIC procon_device setupapi)
+    target_link_libraries(procon_engine PUBLIC procon_device setupapi user32)
 
     # Versão de console.
     add_executable(procon_virtual tools/procon_virtual/main.cpp)

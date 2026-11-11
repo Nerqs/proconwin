@@ -8,7 +8,9 @@
 #include <chrono>
 #include <memory>
 
+#include "desktop_input.h"
 #include "processes.h"
+#include "procon/desktop.h"
 #include "procon/controller.h"
 #include "procon/gyro.h"
 #include "procon/mapping.h"
@@ -116,6 +118,11 @@ void Engine::Run() {
   int current_player = -1;
   bool home_held = false;
   auto home_since = Clock::now();
+  bool capture_held = false;
+  bool capture_toggled = false;  // já trocou o modo neste aperto
+  auto capture_since = Clock::now();
+  DesktopMapper desk;
+  const auto t0 = Clock::now();
 
   auto set_status = [&](auto&& fn) {
     std::lock_guard<std::mutex> l(mu_);
@@ -133,6 +140,8 @@ void Engine::Run() {
     current_player = -1;
     prev_buttons = 0;
     home_held = false;
+    capture_held = false;
+    SendDesktopFrame(desk.Release());
     gyro_out.Reset();
     set_status([](EngineStatus& s) {
       s.connected = false;
@@ -153,6 +162,9 @@ void Engine::Run() {
       gyro_out.Reset();
       if (pad && old.home_light != cfg.home_light) pad->SetHomeLight(cfg.home_light);
       if (old.steam != cfg.steam) next_steam_check = now;
+      if (old.pc_mode && !cfg.pc_mode) SendDesktopFrame(desk.Release());
+      bool pc = cfg.pc_mode;
+      set_status([&](EngineStatus& s) { s.pc_mode = pc; });
     }
 
     if (recalibrate_.exchange(false)) {
@@ -294,6 +306,35 @@ void Engine::Run() {
       Emit(EngineEvent::Info, "Recalibrando o giroscópio, deixe o controle parado...");
     }
 
+    // Segurar Captura por 1 s liga/desliga o modo computador.
+    if (!(st.buttons & BtnCapture)) {
+      capture_held = false;
+    } else if (!capture_held) {
+      capture_held = true;
+      capture_toggled = false;
+      capture_since = now;
+    } else if (!capture_toggled && now - capture_since >= std::chrono::seconds(1)) {
+      capture_toggled = true;
+      if (cfg.pc_mode) SendDesktopFrame(desk.Release());
+      cfg.pc_mode = !cfg.pc_mode;
+      bool pc = cfg.pc_mode;
+      {
+        std::lock_guard<std::mutex> l(mu_);
+        settings_.pc_mode = pc;
+        status_.pc_mode = pc;
+      }
+      if (pad) {
+        // Vibra uma vez para confirmar sem precisar olhar a tela.
+        pad->SendRumble(EncodeRumble(320.0f, 0.5f, 160.0f, 0.5f),
+                        EncodeRumble(320.0f, 0.5f, 160.0f, 0.5f));
+        Sleep(80);
+        pad->SendRumble(kRumbleNeutral, kRumbleNeutral);
+      }
+      Emit(EngineEvent::PcModeChanged,
+           pc ? "Modo computador ligado: o controle é mouse e teclado."
+              : "Modo computador desligado: o controle de Xbox voltou.");
+    }
+
     // Segurar HOME desliga o controle.
     if (!(st.buttons & BtnHome)) {
       home_held = false;
@@ -317,6 +358,24 @@ void Engine::Run() {
         next_open_try = Clock::now() + std::chrono::seconds(2);
         continue;
       }
+    }
+
+    if (cfg.pc_mode) {
+      // Modo computador: o controle de Xbox fica parado (nada apertado) e o
+      // Pro Controller vira mouse e teclado.
+      InputState pc = st;
+      if (cfg.gyro == GyroMode::RightStick) {
+        pc.rx += gyro_out.StickX();
+        pc.ry += gyro_out.StickY();
+      } else if (cfg.gyro == GyroMode::Mouse) {
+        int dx, dy;
+        gyro_out.TakeMouseDelta(dx, dy);
+        MoveMouse(dx, dy);
+      }
+      double secs = std::chrono::duration<double>(now - t0).count();
+      SendDesktopFrame(desk.Update(pc, cfg.pc_buttons, ToDesktopSettings(cfg), dt, secs));
+      virt.Submit(ProconwinReport{});
+      continue;
     }
 
     XboxState xs = MapToXbox(st, map);

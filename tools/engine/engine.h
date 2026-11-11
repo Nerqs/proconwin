@@ -22,6 +22,7 @@ struct EngineStatus {
   bool charging = false;
   uint32_t buttons = 0;  // botões do Pro Controller apertados agora (bits Btn*)
   bool paused = false;  // pausado por causa da Steam
+  bool pc_mode = false;  // modo computador ligado (mouse e teclado)
   std::string steam_game;  // jogo que causou a pausa (se houver)
   std::string driver_error;  // vazio se o driver está ok
 };
@@ -33,6 +34,7 @@ enum class EngineEvent {
   Paused,
   Resumed,
   DriverError,
+  PcModeChanged,  // ligado ou desligado pelo controle (segurando Captura)
   Info,
 };
 

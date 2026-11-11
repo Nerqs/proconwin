@@ -19,6 +19,7 @@
 //   --steam sempre    "Estou usando a Steam": fica sempre pausado
 //   --steam nunca     nunca pausa
 //   --luz-home off    apaga a luz do botão HOME (padrão: on)
+//   --modo-pc         começa no modo computador (mouse e teclado)
 //
 // Durante o uso: Captura recalibra o drift (deixe o controle parado),
 // segurar HOME por 3 s desliga o controle (Bluetooth), a tecla S liga e
@@ -74,6 +75,8 @@ bool ParseArgs(int argc, char** argv, Settings& o) {
       else if (v == "sempre") o.steam = SteamMode::Always;
       else if (v == "nunca") o.steam = SteamMode::Never;
       else return false;
+    } else if (a == "--modo-pc") {
+      o.pc_mode = true;
     } else if (a == "--luz-home" && next(v)) {
       if (v == "on") o.home_light = true;
       else if (v == "off") o.home_light = false;
@@ -109,7 +112,8 @@ int main(int argc, char** argv) {
   if (!ParseArgs(argc, argv, cfg)) {
     std::fprintf(stderr,
                  "Uso: procon_virtual [--layout posicao|nome] [--gyro off|mouse|stick] [--sens N]\n"
-                 "                    [--steam auto|sempre|nunca] [--luz-home on|off]\n");
+                 "                    [--steam auto|sempre|nunca] [--luz-home on|off]\n"
+                 "                    [--modo-pc]\n");
     return 1;
   }
   std::signal(SIGINT, OnSignal);
@@ -121,7 +125,9 @@ int main(int argc, char** argv) {
                                             : "analógico direito");
   std::printf("Steam: %s\n", SteamModeName(cfg.steam));
   std::printf("Captura = recalibrar giroscópio | segurar HOME 3 s = desligar o controle\n"
+              "segurar Captura 1 s ou P = modo computador (mouse e teclado)\n"
               "S = Estou usando a Steam (liga/desliga) | L = luz do HOME | Ctrl+C = sair\n");
+  if (cfg.pc_mode) std::printf("Modo computador ligado.\n");
 
   Engine engine;
   engine.Start(cfg, [](EngineEvent, const std::string& text) {
@@ -132,7 +138,13 @@ int main(int argc, char** argv) {
   while (!g_quit) {
     while (_kbhit()) {
       int c = _getch();
-      if (c == 's' || c == 'S') {
+      // O controle pode ter mudado o modo computador: parte do estado do motor.
+      cfg = engine.GetSettings();
+      if (c == 'p' || c == 'P') {
+        cfg.pc_mode = !cfg.pc_mode;
+        engine.SetSettings(cfg);
+        std::printf("Modo computador %s\n", cfg.pc_mode ? "ligado" : "desligado");
+      } else if (c == 's' || c == 'S') {
         cfg.steam = cfg.steam == SteamMode::Always ? base : SteamMode::Always;
         engine.SetSettings(cfg);
         std::printf("Steam: %s\n", SteamModeName(cfg.steam));

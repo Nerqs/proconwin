@@ -52,7 +52,9 @@ bool Settings::operator==(const Settings& o) const {
   return buttons == o.buttons && profile == o.profile && gyro == o.gyro &&
          mouse_pixels_per_degree == o.mouse_pixels_per_degree &&
          stick_full_speed_dps == o.stick_full_speed_dps && gyro_invert_x == o.gyro_invert_x &&
-         gyro_invert_y == o.gyro_invert_y && steam == o.steam && home_light == o.home_light;
+         gyro_invert_y == o.gyro_invert_y && steam == o.steam && home_light == o.home_light &&
+         pc_mode == o.pc_mode && pc_buttons == o.pc_buttons &&
+         pc_mouse_speed == o.pc_mouse_speed;
 }
 
 std::string SerializeSettings(const Settings& s) {
@@ -69,6 +71,13 @@ std::string SerializeSettings(const Settings& s) {
   o << "# Botões: botao.<botão da Nintendo> = <botão do Xbox>\n";
   for (size_t i = 0; i < s.buttons.size(); ++i) {
     o << "botao." << SourceId(static_cast<Source>(i)) << " = " << TargetId(s.buttons[i]) << "\n";
+  }
+  o << "# Modo computador: pc.<botão da Nintendo> = <ação>\n";
+  o << "modo_pc = " << (s.pc_mode ? "sim" : "nao") << "\n";
+  o << "velocidade_mouse_pc = " << s.pc_mouse_speed << "\n";
+  for (size_t i = 0; i < s.pc_buttons.size(); ++i) {
+    o << "pc." << SourceId(static_cast<Source>(i)) << " = " << PcActionId(s.pc_buttons[i])
+      << "\n";
   }
   return o.str();
 }
@@ -110,6 +119,16 @@ Settings ParseSettings(const std::string& text) {
       ParseBool(v, s.home_light);
     } else if (key == "perfil") {
       s.profile = SanitizeProfileName(v);
+    } else if (key == "modo_pc") {
+      ParseBool(v, s.pc_mode);
+    } else if (key == "velocidade_mouse_pc") {
+      ParsePositive(v, 50.0f, 20000.0f, s.pc_mouse_speed);
+    } else if (key.rfind("pc.", 0) == 0) {
+      Source src;
+      PcAction act;
+      if (SourceFromId(key.substr(3), src) && PcActionFromId(v, act)) {
+        s.pc_buttons[static_cast<size_t>(src)] = act;
+      }
     } else if (key.rfind("botao.", 0) == 0) {
       Source src;
       Target dst;
@@ -142,6 +161,12 @@ std::string SanitizeProfileName(const std::string& name) {
   while (!out.empty() && out.back() == '.') out.pop_back();
   if (out.size() > 60) out.resize(60);
   return out;
+}
+
+DesktopSettings ToDesktopSettings(const Settings& s) {
+  DesktopSettings d;
+  d.mouse_speed = s.pc_mouse_speed;
+  return d;
 }
 
 GyroSettings ToGyroSettings(const Settings& s) {

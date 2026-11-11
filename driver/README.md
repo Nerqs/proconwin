@@ -31,6 +31,7 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
    - giroscópio (desligado, mouse ou analógico direito) e recalibrar;
    - botões: pela posição, pelo nome, ou do seu jeito em **Botões > Editar botões e perfis...**;
    - perfil em uso (um por jogo, por exemplo);
+   - modo computador (mouse e teclado) e a velocidade do mouse;
    - "Estou usando a Steam" e "Pausar sozinho com jogos da Steam";
    - luz do botão HOME;
    - iniciar com o Windows.
@@ -39,13 +40,30 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
 
    **Editor de botões:** cada botão do Pro Controller tem uma caixa onde você escolhe para qual botão do Xbox ele vai (ou "nada"). A mudança vale na hora. Aperte um botão no controle e o nome dele fica azul e em negrito na janela, para achar rápido. Os botões "Padrão: pela posição" e "Padrão: pelo nome" voltam ao começo.
 
+   **Modo computador:** para usar o Windows com o controle, sem mouse. Ligue pelo menu **Modo computador** da bandeja ou **segurando Captura por 1 segundo** no controle (ele vibra para confirmar). Segurar de novo desliga. Enquanto está ligado, o controle de Xbox virtual fica parado, então os jogos não recebem nada em dobro.
+
+   | Controle | Faz |
+   |---|---|
+   | Analógico direito | move o mouse |
+   | Analógico esquerdo | rola a página (para os lados também) |
+   | ZL / ZR | clique esquerdo / clique direito |
+   | R3 (apertar o analógico direito) | clique do meio |
+   | A / B | Enter / Esc |
+   | X / Y | Apagar / Espaço |
+   | Direcional | setas |
+   | L / R | voltar / avançar (navegador) |
+   | + / − | menu Iniciar / ver todas as janelas |
+   | L3 (apertar o analógico esquerdo) | teclado virtual |
+
+   Tudo isso dá para trocar no editor, em "Editar: Modo computador" (tem Alt+Tab, fechar janela, volume, play/pausa, recortar a tela e mais). O giroscópio continua funcionando como mouse se estiver ligado. Limite do Windows: programas abertos como administrador não aceitam cliques e teclas do controle.
+
    **Perfis:** um perfil guarda os botões e o giroscópio. Para criar, ajuste do jeito que quer, digite um nome (o do jogo, por exemplo) e clique em "Criar com os botões atuais". Enquanto um perfil está em uso, toda mudança vai direto para ele. Troque de perfil pelo editor ou pelo menu **Perfil** da bandeja. Cada perfil é um arquivo em `%APPDATA%\ProconWin\perfis\`.
 
    Também existe a versão de console, para testes:
    ```powershell
    .\procon_virtual.exe
    ```
-   Opções: `--gyro mouse` (giroscópio move o mouse), `--gyro stick` (giroscópio soma no analógico direito), `--sens N` (sensibilidade), `--layout nome` (A da Nintendo = A do Xbox), `--luz-home off` (apaga a luz do botão HOME; a tecla **L** acende e apaga com o programa aberto).
+   Opções: `--gyro mouse` (giroscópio move o mouse), `--gyro stick` (giroscópio soma no analógico direito), `--sens N` (sensibilidade), `--layout nome` (A da Nintendo = A do Xbox), `--luz-home off` (apaga a luz do botão HOME; a tecla **L** acende e apaga com o programa aberto), `--modo-pc` (começa no modo computador; a tecla **P** liga e desliga).
 
    **Steam:** com a Steam aberta você não precisa fechar mais nada. Quando um jogo aberto pela Steam está rodando, o `procon_virtual` pausa sozinho e deixa o Steam Input usar o controle, sem entrada dobrada. Quando o jogo fecha, ele volta. A tecla **S** liga o modo "Estou usando a Steam" (fica pausado o tempo todo, por exemplo no Big Picture). Também dá para escolher na linha de comando: `--steam auto` (padrão), `--steam sempre` ou `--steam nunca`.
 
