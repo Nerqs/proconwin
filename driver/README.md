@@ -28,7 +28,7 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
    powershell -ExecutionPolicy Bypass -File .\instalar.ps1
    ```
 4. Conecte o Pro Controller e abra o **`procon_tray.exe`**. Ele fica na bandeja, ao lado do relógio (pode estar escondido na setinha ^). Clique no ícone para ver o estado do controle e a bateria, e para mudar:
-   - giroscópio (desligado, mouse ou analógico direito) e recalibrar;
+   - giroscópio (desligado, mouse ou analógico direito), a sensibilidade (1 a 10, cada modo tem a sua) e recalibrar;
    - botões: pela posição, pelo nome, ou do seu jeito em **Botões > Editar botões e perfis...**;
    - perfil em uso (um por jogo, por exemplo);
    - modo computador (mouse e teclado) e a velocidade do mouse;
@@ -63,7 +63,7 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
    ```powershell
    .\procon_virtual.exe
    ```
-   Opções: `--gyro mouse` (giroscópio move o mouse), `--gyro stick` (giroscópio soma no analógico direito), `--sens N` (sensibilidade), `--layout nome` (A da Nintendo = A do Xbox), `--luz-home off` (apaga a luz do botão HOME; a tecla **L** acende e apaga com o programa aberto), `--modo-pc` (começa no modo computador; a tecla **P** liga e desliga).
+   Opções: `--gyro mouse` (giroscópio move o mouse), `--gyro stick` (giroscópio soma no analógico direito), `--sens N` (sensibilidade), `--layout nome` (A da Nintendo = A do Xbox), `--luz-home off` (apaga a luz do botão HOME; a tecla **L** acende e apaga com o programa aberto), `--modo-pc` (começa no modo computador; a tecla **P** liga e desliga). As teclas **+** e **-** mudam a sensibilidade do giroscópio.
 
    **Steam:** com a Steam aberta você não precisa fechar mais nada. Quando um jogo aberto pela Steam está rodando, o `procon_virtual` pausa sozinho e deixa o Steam Input usar o controle, sem entrada dobrada. Quando o jogo fecha, ele volta. A tecla **S** liga o modo "Estou usando a Steam" (fica pausado o tempo todo, por exemplo no Big Picture). Também dá para escolher na linha de comando: `--steam auto` (padrão), `--steam sempre` ou `--steam nunca`.
 

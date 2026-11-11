@@ -1,5 +1,6 @@
 #include "procon/settings.h"
 
+#include <cmath>
 #include <cstdlib>
 #include <sstream>
 
@@ -162,6 +163,26 @@ std::string SanitizeProfileName(const std::string& name) {
   if (out.size() > 60) out.resize(60);
   return out;
 }
+
+namespace {
+const float kMouseLevels[kGyroLevels] = {8, 12, 16, 20, 30, 40, 55, 70, 90, 120};
+const float kStickLevels[kGyroLevels] = {360, 270, 200, 150, 110, 80, 60, 45, 32, 22};
+
+int Clamp(int level) { return level < 1 ? 1 : level > kGyroLevels ? kGyroLevels : level; }
+
+int Nearest(const float* table, float v) {
+  int best = 0;
+  for (int i = 1; i < kGyroLevels; ++i) {
+    if (std::fabs(table[i] - v) < std::fabs(table[best] - v)) best = i;
+  }
+  return best + 1;
+}
+}  // namespace
+
+float MouseSensForLevel(int level) { return kMouseLevels[Clamp(level) - 1]; }
+float StickSpeedForLevel(int level) { return kStickLevels[Clamp(level) - 1]; }
+int MouseLevelOf(float v) { return Nearest(kMouseLevels, v); }
+int StickLevelOf(float v) { return Nearest(kStickLevels, v); }
 
 DesktopSettings ToDesktopSettings(const Settings& s) {
   DesktopSettings d;
