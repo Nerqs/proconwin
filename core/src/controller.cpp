@@ -254,9 +254,11 @@ bool Controller::SetPlayerLights(uint8_t mask) {
 }
 
 bool Controller::SetHomeLight(bool on) {
-  // Formato: duração/repetições + ciclos. Aqui: brilho fixo no máximo ou apagado.
-  if (on) return Subcommand(subcmd::HomeLight, {0x01, 0xF0, 0xF0, 0x00});
-  return Subcommand(subcmd::HomeLight, {0x00});
+  // Formato (igual ao SDL): byte 0 = ciclos extras e duração, byte 1 =
+  // brilho inicial, bytes 2 e 3 = primeiro ciclo. Apagado = mesmo padrão com
+  // brilho 0; mandar só um byte deixava o pacote incompleto.
+  uint8_t level = on ? 0xF0 : 0x00;
+  return Subcommand(subcmd::HomeLight, {0x01, level, level, 0x00});
 }
 
 }  // namespace procon
