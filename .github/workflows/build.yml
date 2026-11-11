@@ -35,6 +35,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
+        with:
+          # O InfVerif do WDK só carrega no MSBuild de 64 bits.
+          msbuild-architecture: x64
       - name: Baixar o DMF
         run: git clone --depth 1 --branch $env:DMF_TAG https://github.com/microsoft/DMF DMF
       - name: Compilar o DMF (DmfK)
