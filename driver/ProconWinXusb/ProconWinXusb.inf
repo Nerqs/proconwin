@@ -13,9 +13,9 @@ DriverVer   =
 PnpLockdown = 1
 
 [Manufacturer]
-%ManufacturerName% = Standard,NT$ARCH$.10.0...16299
+%ManufacturerName% = Standard,NT$ARCH$.10.0...17134
 
-[Standard.NT$ARCH$.10.0...16299]
+[Standard.NT$ARCH$.10.0...17134]
 %DeviceName% = ProconWinXusb_Install, Root\ProconWinXusb
 
 [SourceDisksNames]
