@@ -1,0 +1,63 @@
+;
+; ProconWinXusb.inf: controle de Xbox 360 virtual do ProconWin (UMDF2,
+; modo usuário). Não precisa de modo de teste nem de Secure Boot desligado.
+;
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = System
+ClassGuid   = {4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider    = %ManufacturerName%
+CatalogFile = ProconWinXusb.cat
+DriverVer   =
+PnpLockdown = 1
+
+[Manufacturer]
+%ManufacturerName% = Standard,NT$ARCH$.10.0...16299
+
+[Standard.NT$ARCH$.10.0...16299]
+%DeviceName% = ProconWinXusb_Install, Root\ProconWinXusb
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+ProconWinXusb.dll = 1
+
+[DestinationDirs]
+UMDriverCopy = 13
+
+[UMDriverCopy]
+ProconWinXusb.dll
+
+[ProconWinXusb_Install.NT]
+CopyFiles = UMDriverCopy
+Include   = WUDFRD.inf
+Needs     = WUDFRD.NT
+
+[ProconWinXusb_Install.NT.hw]
+Include = WUDFRD.inf
+Needs   = WUDFRD.NT.HW
+AddReg  = ProconWinXusb_Security
+
+[ProconWinXusb_Install.NT.Services]
+Include = WUDFRD.inf
+Needs   = WUDFRD.NT.Services
+
+[ProconWinXusb_Install.NT.Wdf]
+UmdfService      = ProconWinXusb, ProconWinXusb_UmdfService
+UmdfServiceOrder = ProconWinXusb
+
+[ProconWinXusb_UmdfService]
+UmdfLibraryVersion = $UMDFVERSION$
+ServiceBinary      = %13%\ProconWinXusb.dll
+
+; Qualquer programa do usuário (incluindo jogos da Microsoft Store) pode
+; abrir o controle, como num controle de Xbox de verdade.
+[ProconWinXusb_Security]
+HKR,,Security,,"D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GRGW;;;WD)(A;;GRGW;;;AC)"
+
+[Strings]
+ManufacturerName = "ProconWin"
+DiskName         = "ProconWin"
+DeviceName       = "ProconWin - controle de Xbox 360 virtual"

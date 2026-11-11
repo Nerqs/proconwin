@@ -1,6 +1,7 @@
 // procon_virtual: faz o Pro Controller aparecer como um controle de Xbox 360.
 //
-// Requer o driver ProconWinBus instalado (veja driver/README.md).
+// Requer o driver ProconWinXusb (modo usuário: funciona com o Secure Boot
+// ligado e sem modo de teste). Veja driver/README.md.
 //
 // Uso:
 //   procon_virtual [--layout posicao|nome] [--gyro off|mouse|stick] [--sens N]
@@ -21,21 +22,18 @@
 
 #include <hidapi.h>
 
-#include <ViGEm/Client.h>
-
-#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <string>
 
 #include "procon/controller.h"
 #include "procon/gyro.h"
 #include "procon/mapping.h"
 #include "procon/protocol.h"
+#include "xusb_feeder.h"
 
 using namespace procon;
 using Clock = std::chrono::steady_clock;
@@ -43,17 +41,8 @@ using Clock = std::chrono::steady_clock;
 namespace {
 
 std::atomic<bool> g_quit{false};
-std::atomic<uint8_t> g_large_motor{0}, g_small_motor{0};
-std::atomic<int> g_led{-1};
 
 void OnSignal(int) { g_quit = true; }
-
-VOID CALLBACK OnX360Notification(PVIGEM_CLIENT, PVIGEM_TARGET, UCHAR large_motor, UCHAR small_motor,
-                                 UCHAR led, LPVOID) {
-  g_large_motor = large_motor;
-  g_small_motor = small_motor;
-  g_led = led;
-}
 
 struct Options {
   bool nintendo_layout = false;
@@ -99,15 +88,15 @@ void MoveMouse(int dx, int dy) {
   SendInput(1, &in, sizeof(in));
 }
 
-XUSB_REPORT ToReport(const XboxState& s) {
-  XUSB_REPORT r{};
-  r.wButtons = s.buttons;
-  r.bLeftTrigger = s.left_trigger;
-  r.bRightTrigger = s.right_trigger;
-  r.sThumbLX = s.lx;
-  r.sThumbLY = s.ly;
-  r.sThumbRX = s.rx;
-  r.sThumbRY = s.ry;
+ProconwinReport ToReport(const XboxState& s) {
+  ProconwinReport r{};
+  r.buttons = s.buttons;
+  r.left_trigger = s.left_trigger;
+  r.right_trigger = s.right_trigger;
+  r.lx = s.lx;
+  r.ly = s.ly;
+  r.rx = s.rx;
+  r.ry = s.ry;
   return r;
 }
 
@@ -123,23 +112,7 @@ int main(int argc, char** argv) {
   }
   std::signal(SIGINT, OnSignal);
 
-  // 1. Driver do controle virtual.
-  PVIGEM_CLIENT client = vigem_alloc();
-  if (!client) {
-    std::fprintf(stderr, "Sem memória para o cliente do driver.\n");
-    return 1;
-  }
-  VIGEM_ERROR err = vigem_connect(client);
-  if (!VIGEM_SUCCESS(err)) {
-    std::fprintf(stderr,
-                 "Não encontrei o driver ProconWinBus (erro 0x%08X). Instale com procon_install "
-                 "(veja driver/README.md).\n",
-                 static_cast<unsigned>(err));
-    vigem_free(client);
-    return 1;
-  }
-
-  // 2. Pro Controller.
+  // 1. Pro Controller.
   if (hid_init() != 0) {
     std::fprintf(stderr, "Falha ao iniciar o hidapi.\n");
     return 1;
@@ -147,28 +120,20 @@ int main(int argc, char** argv) {
   int exit_code = 0;
   {
     Controller pad;
-    std::string perr;
-    if (!pad.Open(perr) || !pad.Initialize(perr)) {
-      std::fprintf(stderr, "%s\n", perr.c_str());
-      vigem_disconnect(client);
-      vigem_free(client);
+    std::string err;
+    if (!pad.Open(err) || !pad.Initialize(err)) {
+      std::fprintf(stderr, "%s\n", err.c_str());
       hid_exit();
       return 1;
     }
 
-    // 3. Controle de Xbox 360 virtual.
-    PVIGEM_TARGET x360 = vigem_target_x360_alloc();
-    err = vigem_target_add(client, x360);
-    if (!VIGEM_SUCCESS(err)) {
-      std::fprintf(stderr, "O driver não criou o controle virtual (erro 0x%08X).\n",
-                   static_cast<unsigned>(err));
-      vigem_target_free(x360);
-      vigem_disconnect(client);
-      vigem_free(client);
+    // 2. Controle de Xbox 360 virtual (aparece no Windows a partir daqui).
+    XusbFeeder virt;
+    if (!virt.Open(err)) {
+      std::fprintf(stderr, "%s\n", err.c_str());
       hid_exit();
       return 1;
     }
-    vigem_target_x360_register_notification(client, x360, &OnX360Notification, nullptr);
 
     std::printf("Pro Controller (%s) agora é um controle de Xbox 360.\n",
                 pad.IsUsb() ? "USB" : "Bluetooth");
@@ -196,7 +161,8 @@ int main(int argc, char** argv) {
     auto last_report = Clock::now();
     auto last_rumble = Clock::now();
     bool rumbling = false;
-    int current_led = -1;
+    int current_player = -1;
+    bool warned_submit = false;
 
     while (!g_quit) {
       int n = pad.ReadReport(buf, sizeof(buf), 100);
@@ -208,7 +174,7 @@ int main(int argc, char** argv) {
       auto now = Clock::now();
 
       // Rumble vindo do jogo: motor forte = frequência baixa, fraco = alta.
-      uint8_t big_m = g_large_motor, little_m = g_small_motor;
+      uint8_t big_m = virt.LargeMotor(), little_m = virt.SmallMotor();
       if ((big_m || little_m) && now - last_rumble > std::chrono::milliseconds(15)) {
         auto side = EncodeRumble(320.0f, little_m / 255.0f, 160.0f, big_m / 255.0f);
         pad.SendRumble(side, side);
@@ -219,11 +185,11 @@ int main(int argc, char** argv) {
         rumbling = false;
       }
 
-      // LED do jogador que o Windows atribuiu ao controle virtual.
-      int led = g_led;
-      if (led >= 0 && led != current_led) {
-        pad.SetPlayerLights(static_cast<uint8_t>(1u << (led % 4)));
-        current_led = led;
+      // LED do jogador que o XInput atribuiu ao controle virtual.
+      int player = virt.Player();
+      if (player >= 0 && player != current_player) {
+        pad.SetPlayerLights(static_cast<uint8_t>(1u << (player % 4)));
+        current_player = player;
       }
 
       if (n == 0 || buf[0] != kInputFull) continue;
@@ -253,17 +219,16 @@ int main(int argc, char** argv) {
         gyro_out.TakeMouseDelta(dx, dy);
         MoveMouse(dx, dy);
       }
-      XUSB_REPORT report = ToReport(xs);
-      vigem_target_x360_update(client, x360, report);
+      if (!virt.Submit(ToReport(xs)) && !warned_submit) {
+        std::fprintf(stderr, "O driver recusou o estado do controle (erro %lu).\n",
+                     GetLastError());
+        warned_submit = true;
+      }
     }
 
-    vigem_target_x360_unregister_notification(x360);
-    vigem_target_remove(client, x360);
-    vigem_target_free(x360);
+    if (rumbling) pad.SendRumble(kRumbleNeutral, kRumbleNeutral);
     std::printf("Encerrando...\n");
   }
-  vigem_disconnect(client);
-  vigem_free(client);
   hid_exit();
   return exit_code;
 }

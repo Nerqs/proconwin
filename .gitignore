@@ -6,3 +6,6 @@ DMF/
 driver/x64/
 driver/ProconWinBus/x64/
 driver/bin/
+
+# Saída do driver em modo usuário
+driver/ProconWinXusb/obj/

@@ -44,19 +44,13 @@ if(PROCON_BUILD_TOOLS)
   target_link_libraries(procon_proto PRIVATE procon_device)
 
   if(WIN32)
-    # Cliente do driver de controle virtual (ViGEmClient, licença MIT).
-    add_library(vigemclient STATIC third_party/vigemclient/src/ViGEmClient.cpp)
-    target_include_directories(vigemclient PUBLIC third_party/vigemclient/include)
-    target_link_libraries(vigemclient PUBLIC setupapi)
-    # Código de terceiros: compila sem o nível de avisos do projeto.
-    if(MSVC)
-      set_target_properties(vigemclient PROPERTIES COMPILE_OPTIONS "/utf-8;/W1")
-    else()
-      set_target_properties(vigemclient PROPERTIES COMPILE_OPTIONS "-w")
-    endif()
-
-    add_executable(procon_virtual tools/procon_virtual/main.cpp)
-    target_link_libraries(procon_virtual PRIVATE procon_device vigemclient)
+    # Controle de Xbox 360 virtual, via driver ProconWinXusb (modo usuário).
+    add_executable(procon_virtual
+      tools/procon_virtual/main.cpp
+      tools/procon_virtual/xusb_feeder.cpp
+    )
+    target_include_directories(procon_virtual PRIVATE driver/include)
+    target_link_libraries(procon_virtual PRIVATE procon_device setupapi)
 
     add_executable(procon_install tools/procon_install/main.cpp)
     target_link_libraries(procon_install PRIVATE setupapi newdev shell32)
