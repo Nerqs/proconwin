@@ -5,7 +5,7 @@
 //
 // Uso:
 //   procon_virtual [--layout posicao|nome] [--gyro off|mouse|stick] [--sens N]
-//                  [--steam auto|sempre|nunca]
+//                  [--steam auto|sempre|nunca] [--luz-home on|off]
 //
 //   --layout posicao  B da Nintendo = A do Xbox (padrão)
 //   --layout nome     A da Nintendo = A do Xbox
@@ -17,10 +17,12 @@
 //                     (padrão), para o Steam Input usar o controle sozinho
 //   --steam sempre    "Estou usando a Steam": fica sempre pausado
 //   --steam nunca     nunca pausa
+//   --luz-home off    apaga a luz do botão HOME (padrão: on)
 //
 // Durante o uso: Captura recalibra o drift (deixe o controle parado),
 // segurar HOME por 3 s desliga o controle (Bluetooth), a tecla S liga e
-// desliga o "Estou usando a Steam", Ctrl+C sai.
+// desliga o "Estou usando a Steam", a tecla L acende/apaga a luz do
+// HOME, Ctrl+C sai.
 //
 // Se o controle desconectar ou for desligado, o programa espera ele voltar.
 #ifndef NOMINMAX
@@ -61,6 +63,7 @@ struct Options {
   GyroMode gyro = GyroMode::Off;
   float sens = -1;
   SteamMode steam = SteamMode::Auto;
+  bool home_light = true;
 };
 
 bool ParseArgs(int argc, char** argv, Options& o) {
@@ -85,6 +88,10 @@ bool ParseArgs(int argc, char** argv, Options& o) {
       if (v == "auto") o.steam = SteamMode::Auto;
       else if (v == "sempre") o.steam = SteamMode::Always;
       else if (v == "nunca") o.steam = SteamMode::Never;
+      else return false;
+    } else if (a == "--luz-home" && next(v)) {
+      if (v == "on") o.home_light = true;
+      else if (v == "off") o.home_light = false;
       else return false;
     } else if (a == "--sens" && next(v)) {
       o.sens = std::strtof(v.c_str(), nullptr);
@@ -135,7 +142,7 @@ int main(int argc, char** argv) {
   if (!ParseArgs(argc, argv, opt)) {
     std::fprintf(stderr,
                  "Uso: procon_virtual [--layout posicao|nome] [--gyro off|mouse|stick] [--sens N]\n"
-                 "                    [--steam auto|sempre|nunca]\n");
+                 "                    [--steam auto|sempre|nunca] [--luz-home on|off]\n");
     return 1;
   }
   std::signal(SIGINT, OnSignal);
@@ -152,7 +159,7 @@ int main(int argc, char** argv) {
                                             : "analógico direito");
   std::printf("Steam: %s\n", SteamModeName(opt.steam));
   std::printf("Captura = recalibrar giroscópio | segurar HOME 3 s = desligar o controle\n"
-              "S = Estou usando a Steam (liga/desliga) | Ctrl+C = sair\n");
+              "S = Estou usando a Steam (liga/desliga) | L = luz do HOME | Ctrl+C = sair\n");
 
   const ButtonMap map = opt.nintendo_layout ? NintendoLabelMap() : DefaultPositionalMap();
   GyroSettings gs;
@@ -167,6 +174,7 @@ int main(int argc, char** argv) {
   std::unique_ptr<Controller> pad;
   XusbFeeder virt;
   SteamMode steam_mode = opt.steam;
+  bool home_light = opt.home_light;
   bool steam_game = false;
   std::string steam_game_name;
   bool paused = false;
@@ -213,6 +221,10 @@ int main(int argc, char** argv) {
         steam_mode = steam_mode == SteamMode::Always ? base : SteamMode::Always;
         next_steam_check = now;
         std::printf("Steam: %s\n", SteamModeName(steam_mode));
+      } else if (c == 'l' || c == 'L') {
+        home_light = !home_light;
+        if (pad) pad->SetHomeLight(home_light);
+        std::printf("Luz do HOME: %s\n", home_light ? "acesa" : "apagada");
       }
     }
 
@@ -264,6 +276,7 @@ int main(int argc, char** argv) {
         continue;
       }
       pad = std::move(p);
+      pad->SetHomeLight(home_light);
       waiting_msg_shown = false;
       last_report = Clock::now();
       std::printf("Pro Controller conectado (%s).\n", pad->IsUsb() ? "USB" : "Bluetooth");
