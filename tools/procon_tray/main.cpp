@@ -10,14 +10,13 @@
 #include <shellapi.h>
 #include <shlobj.h>
 
-#include <cstdio>
-#include <filesystem>
-#include <fstream>
-#include <sstream>
 #include <string>
+#include <vector>
 
+#include "editor.h"
 #include "engine.h"
 #include "procon/settings.h"
+#include "storage.h"
 
 using namespace procon;
 
@@ -42,7 +41,10 @@ enum MenuId : UINT {
   IdRecalibrate,
   IdAutostart,
   IdOpenConfig,
+  IdEditButtons,
+  IdNoProfile,
   IdExit,
+  IdProfileBase = 500,  // + índice em g_profiles
 };
 
 struct EventMsg {
@@ -56,40 +58,8 @@ Engine g_engine;
 Settings g_cfg;
 SteamMode g_steam_base = SteamMode::Auto;  // modo quando "Estou usando a Steam" está desligado
 bool g_low_battery_warned = false;
-
-std::wstring Widen(const std::string& s) {
-  if (s.empty()) return {};
-  int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
-  std::wstring w(static_cast<size_t>(n), L'\0');
-  MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), w.data(), n);
-  return w;
-}
-
-std::wstring ConfigDir() {
-  PWSTR path = nullptr;
-  std::wstring dir;
-  if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &path))) {
-    dir = std::wstring(path) + L"\\ProconWin";
-  }
-  CoTaskMemFree(path);
-  return dir;
-}
-
-std::wstring ConfigPath() { return ConfigDir() + L"\\config.ini"; }
-
-Settings LoadSettings() {
-  std::ifstream f(std::filesystem::path(ConfigPath()), std::ios::binary);
-  if (!f) return Settings{};
-  std::stringstream ss;
-  ss << f.rdbuf();
-  return ParseSettings(ss.str());
-}
-
-void SaveSettings(const Settings& s) {
-  CreateDirectoryW(ConfigDir().c_str(), nullptr);
-  std::ofstream f(std::filesystem::path(ConfigPath()), std::ios::binary | std::ios::trunc);
-  f << SerializeSettings(s);
-}
+HINSTANCE g_inst = nullptr;
+std::vector<std::string> g_profiles;  // nomes mostrados no último menu
 
 bool AutostartEnabled() {
   HKEY key;
@@ -179,6 +149,38 @@ void RemoveTrayIcon() {
 void ApplySettings() {
   g_engine.SetSettings(g_cfg);
   SaveSettings(g_cfg);
+  // Com um perfil em uso, botões e giroscópio vão para ele também.
+  if (!g_cfg.profile.empty()) SaveProfile(g_cfg.profile, g_cfg);
+  RefreshButtonEditor();
+}
+
+void OpenEditor() {
+  EditorCallbacks cb;
+  cb.get = [] { return g_cfg; };
+  cb.apply = [](const Settings& s) {
+    g_cfg = s;
+    g_engine.SetSettings(g_cfg);
+    SaveSettings(g_cfg);
+  };
+  cb.pressed_buttons = [] {
+    EngineStatus st = g_engine.GetStatus();
+    return st.connected ? st.buttons : 0u;
+  };
+  ShowButtonEditor(g_inst, cb);
+}
+
+void SelectProfile(const std::string& name) {
+  if (name.empty()) {
+    g_cfg.profile.clear();
+    return;
+  }
+  Settings p;
+  if (!LoadProfile(name, p)) {
+    Notify(L"Não consegui abrir o perfil " + Widen(name) + L".", true);
+    return;
+  }
+  ApplyProfile(p, g_cfg);
+  g_cfg.profile = name;
 }
 
 void ShowMenu() {
@@ -194,16 +196,37 @@ void ShowMenu() {
   AppendMenuW(gyro, MF_STRING, IdRecalibrate, L"Recalibrar (deixe o controle parado)");
 
   HMENU layout = CreatePopupMenu();
-  AppendMenuW(layout, MF_STRING, IdLayoutPosition, L"Pela posição (B da Nintendo = A do Xbox)");
-  AppendMenuW(layout, MF_STRING, IdLayoutName, L"Pelo nome (A da Nintendo = A do Xbox)");
-  CheckMenuRadioItem(layout, IdLayoutPosition, IdLayoutName,
-                     g_cfg.nintendo_layout ? IdLayoutName : IdLayoutPosition, MF_BYCOMMAND);
+  bool by_position = g_cfg.buttons == DefaultPositionalMap();
+  bool by_name = g_cfg.buttons == NintendoLabelMap();
+  AppendMenuW(layout, MF_STRING | (by_position ? MF_CHECKED : 0), IdLayoutPosition,
+              L"Pela posição (B da Nintendo = A do Xbox)");
+  AppendMenuW(layout, MF_STRING | (by_name ? MF_CHECKED : 0), IdLayoutName,
+              L"Pelo nome (A da Nintendo = A do Xbox)");
+  if (!by_position && !by_name) {
+    AppendMenuW(layout, MF_STRING | MF_GRAYED | MF_CHECKED, 0, L"Personalizado");
+  }
+  AppendMenuW(layout, MF_SEPARATOR, 0, nullptr);
+  AppendMenuW(layout, MF_STRING, IdEditButtons, L"Editar botões e perfis...");
+
+  HMENU profiles = CreatePopupMenu();
+  g_profiles = ListProfiles();
+  AppendMenuW(profiles, MF_STRING | (g_cfg.profile.empty() ? MF_CHECKED : 0), IdNoProfile,
+              L"(nenhum)");
+  for (size_t i = 0; i < g_profiles.size() && i < 200; ++i) {
+    AppendMenuW(profiles, MF_STRING | (g_profiles[i] == g_cfg.profile ? MF_CHECKED : 0),
+                IdProfileBase + static_cast<UINT>(i), Widen(g_profiles[i]).c_str());
+  }
+  AppendMenuW(profiles, MF_SEPARATOR, 0, nullptr);
+  AppendMenuW(profiles, MF_STRING, IdEditButtons, L"Criar ou excluir perfis...");
 
   HMENU menu = CreatePopupMenu();
   AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, StatusText().c_str());
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(gyro), L"Giroscópio");
-  AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(layout), L"Layout dos botões");
+  AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(layout), L"Botões");
+  std::wstring profile_label =
+      g_cfg.profile.empty() ? L"Perfil" : L"Perfil: " + Widen(g_cfg.profile);
+  AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(profiles), profile_label.c_str());
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(menu, MF_STRING | (g_cfg.steam == SteamMode::Always ? MF_CHECKED : 0), IdSteamUsing,
               L"Estou usando a Steam");
@@ -230,12 +253,23 @@ void ShowMenu() {
 }
 
 void OnCommand(UINT id) {
+  if (id >= IdProfileBase && id < IdProfileBase + g_profiles.size()) {
+    SelectProfile(g_profiles[id - IdProfileBase]);
+    ApplySettings();
+    return;
+  }
   switch (id) {
     case IdGyroOff: g_cfg.gyro = GyroMode::Off; break;
     case IdGyroMouse: g_cfg.gyro = GyroMode::Mouse; break;
     case IdGyroStick: g_cfg.gyro = GyroMode::RightStick; break;
-    case IdLayoutPosition: g_cfg.nintendo_layout = false; break;
-    case IdLayoutName: g_cfg.nintendo_layout = true; break;
+    case IdLayoutPosition:
+    case IdLayoutName:
+      g_cfg.buttons = id == IdLayoutName ? NintendoLabelMap() : DefaultPositionalMap();
+      break;
+    case IdNoProfile: g_cfg.profile.clear(); break;
+    case IdEditButtons:
+      OpenEditor();
+      return;
     case IdSteamUsing:
       g_cfg.steam = g_cfg.steam == SteamMode::Always ? g_steam_base : SteamMode::Always;
       break;
@@ -344,6 +378,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
     return 0;
   }
 
+  g_inst = inst;
   g_cfg = LoadSettings();
   if (g_cfg.steam != SteamMode::Always) g_steam_base = g_cfg.steam;
 
@@ -370,6 +405,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
 
   MSG msg;
   while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
+    // Tab, Enter e Esc dentro do editor.
+    HWND editor = ButtonEditorWindow();
+    if (editor && IsDialogMessageW(editor, &msg)) continue;
     TranslateMessage(&msg);
     DispatchMessageW(&msg);
   }

@@ -29,12 +29,17 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
    ```
 4. Conecte o Pro Controller e abra o **`procon_tray.exe`**. Ele fica na bandeja, ao lado do relógio (pode estar escondido na setinha ^). Clique no ícone para ver o estado do controle e a bateria, e para mudar:
    - giroscópio (desligado, mouse ou analógico direito) e recalibrar;
-   - layout dos botões (pela posição ou pelo nome);
+   - botões: pela posição, pelo nome, ou do seu jeito em **Botões > Editar botões e perfis...**;
+   - perfil em uso (um por jogo, por exemplo);
    - "Estou usando a Steam" e "Pausar sozinho com jogos da Steam";
    - luz do botão HOME;
    - iniciar com o Windows.
 
    As escolhas ficam salvas em `%APPDATA%\ProconWin\config.ini`.
+
+   **Editor de botões:** cada botão do Pro Controller tem uma caixa onde você escolhe para qual botão do Xbox ele vai (ou "nada"). A mudança vale na hora. Aperte um botão no controle e o nome dele fica azul e em negrito na janela, para achar rápido. Os botões "Padrão: pela posição" e "Padrão: pelo nome" voltam ao começo.
+
+   **Perfis:** um perfil guarda os botões e o giroscópio. Para criar, ajuste do jeito que quer, digite um nome (o do jogo, por exemplo) e clique em "Criar com os botões atuais". Enquanto um perfil está em uso, toda mudança vai direto para ele. Troque de perfil pelo editor ou pelo menu **Perfil** da bandeja. Cada perfil é um arquivo em `%APPDATA%\ProconWin\perfis\`.
 
    Também existe a versão de console, para testes:
    ```powershell

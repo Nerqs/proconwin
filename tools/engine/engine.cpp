@@ -134,7 +134,10 @@ void Engine::Run() {
     prev_buttons = 0;
     home_held = false;
     gyro_out.Reset();
-    set_status([](EngineStatus& s) { s.connected = false; });
+    set_status([](EngineStatus& s) {
+      s.connected = false;
+      s.buttons = 0;
+    });
   };
 
   while (!stop_) {
@@ -145,7 +148,7 @@ void Engine::Run() {
       seen_version = settings_version_;
       Settings old = cfg;
       cfg = GetSettings();
-      map = cfg.nintendo_layout ? NintendoLabelMap() : DefaultPositionalMap();
+      map = cfg.buttons;
       gyro_out.SetSettings(ToGyroSettings(cfg));
       gyro_out.Reset();
       if (pad && old.home_light != cfg.home_light) pad->SetHomeLight(cfg.home_light);
@@ -273,6 +276,7 @@ void Engine::Run() {
     set_status([&](EngineStatus& s) {
       s.battery = st.battery_level;
       s.charging = st.charging;
+      s.buttons = st.buttons;
     });
 
     float dt = std::chrono::duration<float>(now - last_report).count();

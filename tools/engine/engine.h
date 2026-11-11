@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -19,6 +20,7 @@ struct EngineStatus {
   bool usb = false;
   int battery = 0;  // 0 a 8 (8 = cheia)
   bool charging = false;
+  uint32_t buttons = 0;  // botões do Pro Controller apertados agora (bits Btn*)
   bool paused = false;  // pausado por causa da Steam
   std::string steam_game;  // jogo que causou a pausa (se houver)
   std::string driver_error;  // vazio se o driver está ok
