@@ -38,6 +38,10 @@ jobs:
       - name: Baixar o DMF
         run: git clone --depth 1 --branch $env:DMF_TAG https://github.com/microsoft/DMF DMF
       - name: Compilar o DMF (DmfK)
+        # O compilador novo gera avisos no DMF que ele trata como erro (/WX).
+        # _CL_ adiciona /WX- no fim da linha de comando só neste passo.
+        env:
+          _CL_: /WX-
         run: msbuild DMF\Dmf.sln /m /t:"DmfK;DmfKModules_Template" /p:Configuration=Release /p:Platform=x64
       - name: Compilar o driver
         run: msbuild driver\ProconWinBus.sln /m /p:Configuration=Release /p:Platform=x64 /p:DmfRootPath=$env:GITHUB_WORKSPACE\DMF\
