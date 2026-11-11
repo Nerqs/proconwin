@@ -64,7 +64,7 @@ jobs:
       - name: Compilar as ferramentas
         run: |
           cmake -S . -B build
-          cmake --build build --config Release --target procon_proto procon_virtual procon_install
+          cmake --build build --config Release --target procon_proto procon_virtual procon_tray procon_install
       - name: Montar o pacote
         run: |
           New-Item -ItemType Directory -Force pacote\driver | Out-Null
@@ -79,7 +79,7 @@ jobs:
           $inf2cat = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter Inf2Cat.exe | Where-Object FullName -match '\\x86\\' | Sort-Object FullName -Descending | Select-Object -First 1
           & $inf2cat.FullName /driver:pacote\driver /os:10_X64 /verbose
           if ($LASTEXITCODE -ne 0) { throw "inf2cat falhou" }
-          Copy-Item build\Release\procon_proto.exe, build\Release\procon_virtual.exe, build\Release\procon_install.exe pacote\
+          Copy-Item build\Release\procon_proto.exe, build\Release\procon_virtual.exe, build\Release\procon_tray.exe, build\Release\procon_install.exe pacote\
           Copy-Item driver\instalar.ps1, driver\desinstalar.ps1 pacote\
           Copy-Item driver\README.md pacote\LEIA-ME.md
           Copy-Item third_party\licenses -Recurse pacote\licencas
