@@ -2,12 +2,31 @@
 
 O `ProconWinBus` é o driver que cria o controle de Xbox 360 virtual. Ele é baseado no [ViGEmBus](https://github.com/nefarius/ViGEmBus) (licença BSD-3-Clause, projeto descontinuado em 2023), com identidade própria (nome, hardware ID e GUIDs diferentes), para funcionar mesmo se o ViGEmBus original estiver instalado.
 
-## Aviso antes de instalar
+## Qual driver usar
+
+O `procon_virtual` funciona com dois drivers e escolhe sozinho: usa o `ProconWinBus` se ele estiver instalado e, se não estiver, o ViGEmBus oficial.
+
+| Driver | Secure Boot | Quando usar |
+| --- | --- | --- |
+| **ViGEmBus oficial** | Pode ficar ligado | Recomendado hoje. É assinado pela Microsoft. |
+| **ProconWinBus** (este projeto) | Precisa desligar | Só para desenvolvimento, até termos uma assinatura da Microsoft. |
+
+## Opção A: ViGEmBus oficial (recomendado)
+
+1. Baixe o instalador `ViGEmBus_1.22.0_x64_x86_arm64.exe` na página de [releases do ViGEmBus](https://github.com/nefarius/ViGEmBus/releases) e instale.
+2. Feche a Steam, conecte o Pro Controller e rode `procon_virtual.exe`. A primeira linha deve dizer "Driver: ViGEmBus oficial".
+3. Teste em `joy.cpl` (Win+R): deve aparecer **"Controller (XBOX 360 For Windows)"**.
+
+O ViGEmBus foi descontinuado em 2023, mas o instalador assinado continua funcionando no Windows 10 e 11.
+
+## Opção B: ProconWinBus (precisa de modo de teste)
+
+### Aviso antes de instalar
 
 - O driver roda no **kernel** do Windows. Um bug pode travar o PC com tela azul. Se der, reinicie e me mande o que aconteceu.
 - Ele é assinado só com um **certificado de teste**, então o Windows precisa estar em **modo de teste**, e o modo de teste exige o **Secure Boot desligado** na BIOS/UEFI. Alguns jogos com anti-cheat (Valorant, alguns da EA, etc.) se recusam a abrir com o modo de teste ligado.
 
-## Instalar
+### Instalar
 
 1. Baixe o pacote `proconwin-windows-x64` na aba **Actions** do GitHub (abra a última execução verde e role até "Artifacts") e extraia numa pasta.
 2. Abra o **PowerShell como Administrador** nessa pasta.
@@ -32,7 +51,7 @@ O `ProconWinBus` é o driver que cria o controle de Xbox 360 virtual. Ele é bas
    Opções: `--gyro mouse` (giroscópio move o mouse), `--gyro stick` (giroscópio soma no analógico direito), `--sens N` (sensibilidade), `--layout nome` (A da Nintendo = A do Xbox).
 7. Teste em `joy.cpl` (Win+R): deve aparecer **"Controller (XBOX 360 For Windows)"**.
 
-## Remover
+### Remover
 
 ```powershell
 .\procon_install.exe uninstall

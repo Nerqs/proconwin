@@ -34,6 +34,12 @@ SOFTWARE.
 DEFINE_GUID(GUID_DEVINTERFACE_BUSENUM_VIGEM,
     0x6295E9C2, 0x879B, 0x476C, 0xB1, 0xB5, 0x59, 0xC6, 0x06, 0x7A, 0xB8, 0xA3);
 
+// proconwin: GUID do ViGEmBus oficial (assinado pela Microsoft). O cliente usa
+// este como alternativa quando o driver do proconwin não está instalado.
+// {96E42B22-F5E9-42F8-B043-ED0F932F014F}
+DEFINE_GUID(GUID_DEVINTERFACE_BUSENUM_VIGEM_OFFICIAL,
+    0x96E42B22, 0xF5E9, 0x42F8, 0xB0, 0x43, 0xED, 0x0F, 0x93, 0x2F, 0x01, 0x4F);
+
 #pragma once
 
 #include "ViGEm/Common.h"

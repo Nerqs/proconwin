@@ -303,7 +303,9 @@ void vigem_free(PVIGEM_CLIENT vigem)
 	}
 }
 
-VIGEM_ERROR vigem_connect(PVIGEM_CLIENT vigem)
+// proconwin: conecta no barramento com a interface indicada. vigem_connect
+// tenta primeiro o driver do proconwin e depois o ViGEmBus oficial.
+static VIGEM_ERROR vigem_connect_guid(PVIGEM_CLIENT vigem, const GUID* busGuid)
 {
 	if (!vigem)
 		return VIGEM_ERROR_BUS_INVALID_HANDLE;
@@ -321,7 +323,7 @@ VIGEM_ERROR vigem_connect(PVIGEM_CLIENT vigem)
 	}
 
 	const auto deviceInfoSet = SetupDiGetClassDevs(
-		&GUID_DEVINTERFACE_BUSENUM_VIGEM,
+		busGuid,
 		nullptr,
 		nullptr,
 		DIGCF_PRESENT | DIGCF_DEVICEINTERFACE
@@ -331,7 +333,7 @@ VIGEM_ERROR vigem_connect(PVIGEM_CLIENT vigem)
 	while (SetupDiEnumDeviceInterfaces(
 		deviceInfoSet,
 		nullptr,
-		&GUID_DEVINTERFACE_BUSENUM_VIGEM,
+		busGuid,
 		memberIndex++,
 		&deviceInterfaceData
 	))
@@ -423,6 +425,30 @@ VIGEM_ERROR vigem_connect(PVIGEM_CLIENT vigem)
 	SetupDiDestroyDeviceInfoList(deviceInfoSet);
 
 	return error;
+}
+
+static VIGEM_BUS_KIND g_connected_bus_kind = VIGEM_BUS_KIND_NONE;
+
+VIGEM_ERROR vigem_connect(PVIGEM_CLIENT vigem)
+{
+	auto error = vigem_connect_guid(vigem, &GUID_DEVINTERFACE_BUSENUM_VIGEM);
+	if (VIGEM_SUCCESS(error))
+	{
+		g_connected_bus_kind = VIGEM_BUS_KIND_PROCONWIN;
+		return error;
+	}
+	if (error == VIGEM_ERROR_BUS_ALREADY_CONNECTED)
+		return error;
+
+	error = vigem_connect_guid(vigem, &GUID_DEVINTERFACE_BUSENUM_VIGEM_OFFICIAL);
+	if (VIGEM_SUCCESS(error))
+		g_connected_bus_kind = VIGEM_BUS_KIND_OFFICIAL;
+	return error;
+}
+
+VIGEM_BUS_KIND vigem_connected_bus_kind(void)
+{
+	return g_connected_bus_kind;
 }
 
 void vigem_disconnect(PVIGEM_CLIENT vigem)

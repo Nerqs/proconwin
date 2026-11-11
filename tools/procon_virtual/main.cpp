@@ -1,6 +1,7 @@
 // procon_virtual: faz o Pro Controller aparecer como um controle de Xbox 360.
 //
-// Requer o driver ProconWinBus instalado (veja driver/README.md).
+// Requer um driver de controle virtual: o ProconWinBus deste projeto ou o
+// ViGEmBus oficial (assinado, funciona com Secure Boot). Veja driver/README.md.
 //
 // Uso:
 //   procon_virtual [--layout posicao|nome] [--gyro off|mouse|stick] [--sens N]
@@ -132,8 +133,8 @@ int main(int argc, char** argv) {
   VIGEM_ERROR err = vigem_connect(client);
   if (!VIGEM_SUCCESS(err)) {
     std::fprintf(stderr,
-                 "Não encontrei o driver ProconWinBus (erro 0x%08X). Instale com procon_install "
-                 "(veja driver/README.md).\n",
+                 "Não encontrei nenhum driver de controle virtual (erro 0x%08X).\n"
+                 "Instale o ViGEmBus oficial ou o ProconWinBus (veja driver/README.md).\n",
                  static_cast<unsigned>(err));
     vigem_free(client);
     return 1;
@@ -170,6 +171,9 @@ int main(int argc, char** argv) {
     }
     vigem_target_x360_register_notification(client, x360, &OnX360Notification, nullptr);
 
+    std::printf("Driver: %s\n", vigem_connected_bus_kind() == VIGEM_BUS_KIND_PROCONWIN
+                                     ? "ProconWinBus (deste projeto)"
+                                     : "ViGEmBus oficial");
     std::printf("Pro Controller (%s) agora é um controle de Xbox 360.\n",
                 pad.IsUsb() ? "USB" : "Bluetooth");
     std::printf("Layout: %s | giroscópio: %s\n",

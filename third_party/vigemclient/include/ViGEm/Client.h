@@ -166,6 +166,16 @@ extern "C" {
 	 *
 	 * @returns	A PVIGEM_CLIENT object.
 	 */
+	// proconwin: qual barramento o vigem_connect encontrou.
+	typedef enum _VIGEM_BUS_KIND
+	{
+		VIGEM_BUS_KIND_NONE = 0,
+		VIGEM_BUS_KIND_PROCONWIN = 1,  // driver ProconWinBus deste projeto
+		VIGEM_BUS_KIND_OFFICIAL = 2,   // ViGEmBus oficial (assinado)
+	} VIGEM_BUS_KIND;
+
+	VIGEM_API VIGEM_BUS_KIND vigem_connected_bus_kind(void);
+
 	VIGEM_API PVIGEM_CLIENT vigem_alloc(void);
 
 	/**
