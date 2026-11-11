@@ -191,7 +191,11 @@ static void TestSettings() {
   s.gyro_invert_y = true;
   s.steam = SteamMode::Never;
   s.home_light = false;
+  s.pc_mode = true;
+  s.pc_mouse_speed = 900;
+  s.pc_buttons[static_cast<size_t>(Source::A)] = PcAction::AltTab;
   CHECK(ParseSettings(SerializeSettings(s)) == s);
+  CHECK(ParseSettings("pc.a = voar\npc.zz = enter\n").pc_buttons == DefaultPcMap());
 
   // Arquivo editado à mão: comentários, espaços, chave desconhecida e valor
   // inválido não quebram nada.
@@ -220,6 +224,7 @@ static void TestSettings() {
   ApplyProfile(s, cur);
   CHECK(cur.buttons == s.buttons && cur.gyro == s.gyro && cur.stick_full_speed_dps == 500);
   CHECK(cur.steam == SteamMode::Never && !cur.home_light);
+  CHECK(!cur.pc_mode && cur.pc_buttons == DefaultPcMap());  // modo computador é global
 
   CHECK(SanitizeProfileName("  Jogo: Tiro/2*  ") == "Jogo Tiro2");
   CHECK(SanitizeProfileName("...") == "");
@@ -235,6 +240,81 @@ static void TestSettings() {
   CHECK(g.mode == GyroMode::RightStick && g.stick_full_speed_dps == 500 && g.invert_y);
 }
 
+static void TestDesktop() {
+  PcMap map = DefaultPcMap();
+  DesktopSettings ds;
+  DesktopMapper m;
+  InputState in;
+
+  // Para cada ação, o id do arquivo volta igual.
+  for (size_t i = 0; i < static_cast<size_t>(PcAction::Count); ++i) {
+    PcAction back;
+    CHECK(PcActionFromId(PcActionId(static_cast<PcAction>(i)), back) &&
+          back == static_cast<PcAction>(i));
+  }
+
+  // ZL aperta e solta o clique esquerdo.
+  in.buttons = BtnZL;
+  DesktopFrame f = m.Update(in, map, ds, 0.015f, 0.0);
+  CHECK(f.events.size() == 1 && f.events[0] == (PcEvent{PcAction::LeftClick, PcEvent::Down}));
+  f = m.Update(in, map, ds, 0.015f, 0.1);
+  CHECK(f.events.empty());  // clique não repete
+  in.buttons = 0;
+  f = m.Update(in, map, ds, 0.015f, 0.2);
+  CHECK(f.events.size() == 1 && f.events[0] == (PcEvent{PcAction::LeftClick, PcEvent::Up}));
+
+  // Seta para baixo repete depois de segurar um pouco.
+  in.buttons = BtnDown;
+  f = m.Update(in, map, ds, 0.015f, 1.0);
+  CHECK(f.events.size() == 1 && f.events[0].kind == PcEvent::Down);
+  f = m.Update(in, map, ds, 0.015f, 1.2);
+  CHECK(f.events.empty());
+  f = m.Update(in, map, ds, 0.015f, 1.45);
+  CHECK(f.events.size() == 1 && f.events[0] == (PcEvent{PcAction::Down, PcEvent::Repeat}));
+
+  // Trocar o mapa com o botão apertado solta a ação antiga, não a nova.
+  PcMap other = map;
+  other[static_cast<size_t>(Source::Down)] = PcAction::Enter;
+  in.buttons = 0;
+  f = m.Update(in, other, ds, 0.015f, 1.5);
+  CHECK(f.events.size() == 1 && f.events[0] == (PcEvent{PcAction::Down, PcEvent::Up}));
+
+  // Release solta tudo.
+  in.buttons = BtnA | BtnB;
+  m.Update(in, map, ds, 0.015f, 2.0);
+  f = m.Release();
+  CHECK(f.events.size() == 2 && f.events[0].kind == PcEvent::Up && f.events[1].kind == PcEvent::Up);
+
+  // Analógico direito no máximo para a direita e para cima: 1 s = mouse_speed.
+  DesktopMapper mm;
+  in = InputState{};
+  in.rx = 1.0f;
+  in.ry = 1.0f;
+  int dx = 0, dy = 0;
+  for (int i = 0; i < 100; ++i) {
+    f = mm.Update(in, map, ds, 0.01f, i * 0.01);
+    dx += f.mouse_dx;
+    dy += f.mouse_dy;
+  }
+  CHECK(std::abs(dx - 1600) <= 1 && std::abs(dy + 1600) <= 1);
+
+  // Metade do analógico anda bem menos que a metade (curva), mas anda.
+  DesktopMapper mh;
+  in.rx = 0.5f;
+  in.ry = 0;
+  dx = 0;
+  for (int i = 0; i < 100; ++i) dx += mh.Update(in, map, ds, 0.01f, i * 0.01).mouse_dx;
+  CHECK(dx > 300 && dx < 500);
+
+  // Analógico esquerdo para baixo rola para baixo (rodinha negativa).
+  DesktopMapper ms;
+  in = InputState{};
+  in.ly = -1.0f;
+  int wheel = 0;
+  for (int i = 0; i < 100; ++i) wheel += ms.Update(in, map, ds, 0.01f, i * 0.01).wheel;
+  CHECK(std::abs(wheel + 12 * 120) <= 1);
+}
+
 int main() {
   TestRumble();
   TestSticks();
@@ -245,6 +325,7 @@ int main() {
   TestGyroStick();
   TestSteam();
   TestSettings();
+  TestDesktop();
   if (g_failures == 0) std::printf("Todos os testes passaram.\n");
   return g_failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

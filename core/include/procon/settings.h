@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "procon/desktop.h"
 #include "procon/gyro.h"
 #include "procon/mapping.h"
 #include "procon/steam.h"
@@ -26,6 +27,11 @@ struct Settings {
   bool gyro_invert_y = false;
   SteamMode steam = SteamMode::Auto;
   bool home_light = true;
+  // Modo computador: o controle vira mouse e teclado, e o controle de Xbox
+  // virtual fica parado. É global (não muda com o perfil).
+  bool pc_mode = false;
+  PcMap pc_buttons = DefaultPcMap();
+  float pc_mouse_speed = 1600.0f;  // pixels por segundo com o analógico no máximo
   // Perfil em uso (vazio = nenhum). Só o nome; os perfis ficam em arquivos
   // separados (veja SaveProfile/LoadProfile no app).
   std::string profile;
@@ -39,6 +45,9 @@ Settings ParseSettings(const std::string& text);
 
 // Ajustes do giroscópio que saem destas configurações.
 GyroSettings ToGyroSettings(const Settings& s);
+
+// Ajustes do modo computador que saem destas configurações.
+DesktopSettings ToDesktopSettings(const Settings& s);
 
 // Um perfil guarda o que muda de jogo para jogo: botões e giroscópio.
 // Steam, luz do HOME e o nome do perfil em uso continuam globais.

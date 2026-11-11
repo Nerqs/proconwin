@@ -13,6 +13,7 @@ namespace {
 
 constexpr int kSources = static_cast<int>(Source::Count);
 constexpr int kTargets = static_cast<int>(Target::Count);
+constexpr int kPcActions = static_cast<int>(PcAction::Count);
 constexpr UINT_PTR kTimerId = 1;
 
 enum CtrlId : int {
@@ -23,6 +24,10 @@ enum CtrlId : int {
   IdPresetPosition,
   IdPresetName,
   IdClose,
+  IdViewXbox,
+  IdViewPc,
+  IdHelp,
+  IdPcOn,
   IdLabelBase = 2000,   // + índice do botão
   IdComboBase = 3000,   // + índice do botão
 };
@@ -47,6 +52,27 @@ const wchar_t* TargetLabel(int i) {
   return names[i];
 }
 
+const wchar_t* PcLabel(int i) {
+  static const wchar_t* names[] = {
+      L"(nada)", L"Clique esquerdo", L"Clique direito", L"Clique do meio", L"Enter", L"Esc",
+      L"Espaço", L"Apagar (Backspace)", L"Tab", L"Delete", L"Seta \x2191", L"Seta \x2193",
+      L"Seta \x2190", L"Seta \x2192", L"Page Up", L"Page Down", L"Tecla Windows (Iniciar)",
+      L"Alt+Tab (trocar janela)", L"Ver todas as janelas", L"Fechar janela (Alt+F4)",
+      L"Teclado virtual", L"Recortar a tela", L"Volume +", L"Volume \x2212", L"Mudo",
+      L"Play / pausa", L"Voltar (navegador)", L"Avançar (navegador)"};
+  static_assert(sizeof(names) / sizeof(names[0]) == kPcActions, "names");
+  return names[i];
+}
+
+const wchar_t kHelpXbox[] =
+    L"Escolha para qual botão do Xbox vai cada botão do Pro Controller. A mudança vale na "
+    L"hora (e fica salva no perfil em uso). Aperte um botão no controle para ver qual é: ele "
+    L"fica destacado.";
+const wchar_t kHelpPc[] =
+    L"Modo computador: o analógico direito move o mouse e o esquerdo rola a página. Escolha "
+    L"o que cada botão faz. Estas teclas valem para todos os perfis. Segure Captura por 1 s "
+    L"no controle para ligar ou desligar.";
+
 struct State {
   HWND wnd = nullptr;
   EditorCallbacks cb;
@@ -55,6 +81,8 @@ struct State {
   int dpi = 96;
   uint32_t pressed = 0;
   bool updating = false;  // preenchendo os controles (ignora CBN_SELCHANGE)
+  bool pc_view = false;   // editando as teclas do modo computador
+  int filled_view = -1;   // qual lista está nas caixas agora
 };
 State g;
 
@@ -83,14 +111,38 @@ void FillProfiles(const Settings& cfg) {
   EnableWindow(Child(IdDeleteProfile), sel != 0);
 }
 
+void FillCombos() {
+  int view = g.pc_view ? 1 : 0;
+  if (g.filled_view == view) return;
+  g.filled_view = view;
+  for (int i = 0; i < kSources; ++i) {
+    HWND combo = Child(IdComboBase + i);
+    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+    int n = g.pc_view ? kPcActions : kTargets;
+    for (int t = 0; t < n; ++t) {
+      SendMessageW(combo, CB_ADDSTRING, 0,
+                   reinterpret_cast<LPARAM>(g.pc_view ? PcLabel(t) : TargetLabel(t)));
+    }
+  }
+  SetWindowTextW(Child(IdHelp), g.pc_view ? kHelpPc : kHelpXbox);
+  SetWindowTextW(Child(IdPresetPosition),
+                 g.pc_view ? L"Padrão do modo computador" : L"Padrão: pela posição");
+  ShowWindow(Child(IdPresetName), g.pc_view ? SW_HIDE : SW_SHOW);
+  CheckRadioButton(g.wnd, IdViewXbox, IdViewPc, g.pc_view ? IdViewPc : IdViewXbox);
+}
+
 void Refresh() {
   if (!g.wnd) return;
   g.updating = true;
   Settings cfg = g.cb.get();
   FillProfiles(cfg);
+  FillCombos();
   for (int i = 0; i < kSources; ++i) {
-    SendMessageW(Child(IdComboBase + i), CB_SETCURSEL, static_cast<WPARAM>(cfg.buttons[i]), 0);
+    WPARAM sel = g.pc_view ? static_cast<WPARAM>(cfg.pc_buttons[i])
+                           : static_cast<WPARAM>(cfg.buttons[i]);
+    SendMessageW(Child(IdComboBase + i), CB_SETCURSEL, sel, 0);
   }
+  CheckDlgButton(g.wnd, IdPcOn, cfg.pc_mode ? BST_CHECKED : BST_UNCHECKED);
   g.updating = false;
 }
 
@@ -176,10 +228,28 @@ void OnPreset(const ButtonMap& map) {
 
 void OnButtonChanged(int i) {
   int sel = static_cast<int>(SendMessageW(Child(IdComboBase + i), CB_GETCURSEL, 0, 0));
-  if (sel < 0 || sel >= kTargets) return;
+  if (sel < 0 || sel >= (g.pc_view ? kPcActions : kTargets)) return;
   Settings cfg = g.cb.get();
-  cfg.buttons[i] = static_cast<Target>(sel);
-  Apply(cfg);
+  if (g.pc_view) {
+    cfg.pc_buttons[i] = static_cast<PcAction>(sel);
+    g.cb.apply(cfg);  // global, não vai para o perfil
+  } else {
+    cfg.buttons[i] = static_cast<Target>(sel);
+    Apply(cfg);
+  }
+}
+
+void OnPcPreset() {
+  Settings cfg = g.cb.get();
+  cfg.pc_buttons = DefaultPcMap();
+  g.cb.apply(cfg);
+  Refresh();
+}
+
+void OnPcToggle() {
+  Settings cfg = g.cb.get();
+  cfg.pc_mode = IsDlgButtonChecked(g.wnd, IdPcOn) == BST_CHECKED;
+  g.cb.apply(cfg);
 }
 
 HWND Make(const wchar_t* cls, const wchar_t* text, DWORD style, int x, int y, int w, int h,
@@ -209,11 +279,12 @@ void CreateControls() {
   Make(L"BUTTON", L"Criar com os botões atuais", BS_PUSHBUTTON | WS_TABSTOP, m + 325, y - 1, 200,
        26, IdCreateProfile);
   y += 40;
-  Make(L"STATIC",
-       L"Escolha para qual botão do Xbox vai cada botão do Pro Controller. A mudança vale na "
-       L"hora (e fica salva no perfil em uso). Aperte um botão no controle para ver qual é: ele "
-       L"fica destacado.",
-       SS_LEFT, m, y, 560, 50, -1);
+  Make(L"STATIC", L"Editar:", SS_LEFT, m, y + 4, 90, 20, -1);
+  Make(L"BUTTON", L"Jogos (controle de Xbox)", BS_AUTORADIOBUTTON | WS_TABSTOP | WS_GROUP, m + 95,
+       y, 200, 24, IdViewXbox);
+  Make(L"BUTTON", L"Modo computador", BS_AUTORADIOBUTTON, m + 300, y, 160, 24, IdViewPc);
+  y += 32;
+  Make(L"STATIC", kHelpXbox, SS_LEFT, m, y, 560, 50, IdHelp);
   y += 58;
 
   // Duas colunas de 9 botões.
@@ -224,21 +295,21 @@ void CreateControls() {
     int x = m + col * col_w;
     int yy = y + row * 32;
     Make(L"STATIC", SourceLabel(i), SS_LEFT | SS_NOTIFY, x, yy + 4, 110, 20, IdLabelBase + i);
-    HWND combo = Make(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, x + 112, yy,
-                      160, 400, IdComboBase + i);
-    for (int t = 0; t < kTargets; ++t) {
-      SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(TargetLabel(t)));
-    }
+    Make(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, x + 112, yy, 160, 400,
+         IdComboBase + i);
   }
   y += rows * 32 + 8;
   Make(L"STATIC",
-       L"Captura também recalibra o giroscópio, e segurar HOME por 3 s desliga o controle.",
-       SS_LEFT, m, y, 560, 20, -1);
-  y += 30;
-  Make(L"BUTTON", L"Padrão: pela posição", BS_PUSHBUTTON | WS_TABSTOP, m, y, 160, 28,
+       L"Captura também recalibra o giroscópio, segurar Captura por 1 s liga o modo computador "
+       L"e segurar HOME por 3 s desliga o controle.",
+       SS_LEFT, m, y, 560, 36, -1);
+  y += 44;
+  Make(L"BUTTON", L"Padrão: pela posição", BS_PUSHBUTTON | WS_TABSTOP, m, y, 190, 28,
        IdPresetPosition);
-  Make(L"BUTTON", L"Padrão: pelo nome", BS_PUSHBUTTON | WS_TABSTOP, m + 170, y, 160, 28,
+  Make(L"BUTTON", L"Padrão: pelo nome", BS_PUSHBUTTON | WS_TABSTOP, m + 200, y, 150, 28,
        IdPresetName);
+  Make(L"BUTTON", L"Modo computador ligado", BS_AUTOCHECKBOX | WS_TABSTOP, m + 200, y + 36, 250,
+       24, IdPcOn);
   Make(L"BUTTON", L"Fechar", BS_DEFPUSHBUTTON | WS_TABSTOP, m + 480, y, 90, 28, IdClose);
 }
 
@@ -255,7 +326,13 @@ LRESULT CALLBACK EditorProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       } else if (id == IdDeleteProfile) {
         OnDeleteProfile();
       } else if (id == IdPresetPosition) {
-        OnPreset(DefaultPositionalMap());
+        if (g.pc_view) OnPcPreset();
+        else OnPreset(DefaultPositionalMap());
+      } else if ((id == IdViewXbox || id == IdViewPc) && code == BN_CLICKED) {
+        g.pc_view = id == IdViewPc;
+        Refresh();
+      } else if (id == IdPcOn && code == BN_CLICKED && !g.updating) {
+        OnPcToggle();
       } else if (id == IdPresetName) {
         OnPreset(NintendoLabelMap());
       } else if (id >= IdComboBase && id < IdComboBase + kSources && code == CBN_SELCHANGE &&
@@ -304,6 +381,7 @@ LRESULT CALLBACK EditorProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       g.font = g.bold = nullptr;
       g.wnd = nullptr;
       g.pressed = 0;
+      g.filled_view = -1;
       return 0;
   }
   return DefWindowProcW(hwnd, msg, wp, lp);
@@ -315,8 +393,10 @@ HWND ButtonEditorWindow() { return g.wnd; }
 
 void RefreshButtonEditor() { Refresh(); }
 
-void ShowButtonEditor(HINSTANCE inst, const EditorCallbacks& cb) {
+void ShowButtonEditor(HINSTANCE inst, const EditorCallbacks& cb, bool pc_view) {
+  g.pc_view = pc_view;
   if (g.wnd) {
+    Refresh();
     ShowWindow(g.wnd, SW_RESTORE);
     SetForegroundWindow(g.wnd);
     return;
@@ -348,7 +428,7 @@ void ShowButtonEditor(HINSTANCE inst, const EditorCallbacks& cb) {
   bold.lfWeight = FW_BOLD;
   g.bold = CreateFontIndirectW(&bold);
 
-  RECT r{0, 0, S(594), S(560)};
+  RECT r{0, 0, S(594), S(592)};
   DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
   AdjustWindowRect(&r, style, FALSE);
   g.wnd = CreateWindowExW(0, L"ProconWinEditor", L"ProconWin - botões e perfis", style,

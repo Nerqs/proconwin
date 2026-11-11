@@ -43,6 +43,11 @@ enum MenuId : UINT {
   IdOpenConfig,
   IdEditButtons,
   IdNoProfile,
+  IdPcMode,
+  IdPcSlow,
+  IdPcNormal,
+  IdPcFast,
+  IdPcEdit,
   IdExit,
   IdProfileBase = 500,  // + índice em g_profiles
 };
@@ -96,6 +101,7 @@ std::wstring StatusText() {
   }
   if (!st.connected) return L"Esperando o Pro Controller";
   std::wstring s = st.usb ? L"Conectado (USB)" : L"Conectado (Bluetooth)";
+  if (st.pc_mode) s += L" - modo computador";
   if (!st.usb || st.charging) {
     s += L" - bateria " + std::to_wstring(st.battery * 100 / 8) + L"%";
     if (st.charging) s += L", carregando";
@@ -154,7 +160,9 @@ void ApplySettings() {
   RefreshButtonEditor();
 }
 
-void OpenEditor() {
+constexpr float kPcSlow = 900.0f, kPcNormal = 1600.0f, kPcFast = 2600.0f;
+
+void OpenEditor(bool pc_view = false) {
   EditorCallbacks cb;
   cb.get = [] { return g_cfg; };
   cb.apply = [](const Settings& s) {
@@ -166,7 +174,7 @@ void OpenEditor() {
     EngineStatus st = g_engine.GetStatus();
     return st.connected ? st.buttons : 0u;
   };
-  ShowButtonEditor(g_inst, cb);
+  ShowButtonEditor(g_inst, cb, pc_view);
 }
 
 void SelectProfile(const std::string& name) {
@@ -219,6 +227,21 @@ void ShowMenu() {
   AppendMenuW(profiles, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(profiles, MF_STRING, IdEditButtons, L"Criar ou excluir perfis...");
 
+  HMENU pc = CreatePopupMenu();
+  AppendMenuW(pc, MF_STRING | (g_cfg.pc_mode ? MF_CHECKED : 0), IdPcMode,
+              L"Ligado (ou segure Captura por 1 s no controle)");
+  AppendMenuW(pc, MF_SEPARATOR, 0, nullptr);
+  AppendMenuW(pc, MF_STRING, IdPcSlow, L"Mouse lento");
+  AppendMenuW(pc, MF_STRING, IdPcNormal, L"Mouse normal");
+  AppendMenuW(pc, MF_STRING, IdPcFast, L"Mouse rápido");
+  UINT speed_sel = g_cfg.pc_mouse_speed == kPcSlow   ? IdPcSlow
+                   : g_cfg.pc_mouse_speed == kPcFast ? IdPcFast
+                   : g_cfg.pc_mouse_speed == kPcNormal ? IdPcNormal
+                                                       : 0;
+  if (speed_sel) CheckMenuRadioItem(pc, IdPcSlow, IdPcFast, speed_sel, MF_BYCOMMAND);
+  AppendMenuW(pc, MF_SEPARATOR, 0, nullptr);
+  AppendMenuW(pc, MF_STRING, IdPcEdit, L"Escolher as teclas de cada botão...");
+
   HMENU menu = CreatePopupMenu();
   AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, StatusText().c_str());
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
@@ -227,6 +250,8 @@ void ShowMenu() {
   std::wstring profile_label =
       g_cfg.profile.empty() ? L"Perfil" : L"Perfil: " + Widen(g_cfg.profile);
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(profiles), profile_label.c_str());
+  AppendMenuW(menu, MF_POPUP | (g_cfg.pc_mode ? MF_CHECKED : 0), reinterpret_cast<UINT_PTR>(pc),
+              L"Modo computador (mouse e teclado)");
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(menu, MF_STRING | (g_cfg.steam == SteamMode::Always ? MF_CHECKED : 0), IdSteamUsing,
               L"Estou usando a Steam");
@@ -267,6 +292,17 @@ void OnCommand(UINT id) {
       g_cfg.buttons = id == IdLayoutName ? NintendoLabelMap() : DefaultPositionalMap();
       break;
     case IdNoProfile: g_cfg.profile.clear(); break;
+    case IdPcMode:
+      g_cfg.pc_mode = !g_cfg.pc_mode;
+      Notify(g_cfg.pc_mode ? L"Modo computador ligado: o controle é mouse e teclado."
+                           : L"Modo computador desligado: o controle de Xbox voltou.");
+      break;
+    case IdPcSlow: g_cfg.pc_mouse_speed = kPcSlow; break;
+    case IdPcNormal: g_cfg.pc_mouse_speed = kPcNormal; break;
+    case IdPcFast: g_cfg.pc_mouse_speed = kPcFast; break;
+    case IdPcEdit:
+      OpenEditor(true);
+      return;
     case IdEditButtons:
       OpenEditor();
       return;
@@ -311,6 +347,13 @@ void OnEngineEvent(const EventMsg& m) {
       break;
     case EngineEvent::DriverError:
       Notify(Widen(m.text), true);
+      break;
+    case EngineEvent::PcModeChanged:
+      // Mudou pelo controle: guarda para valer na próxima vez que abrir.
+      g_cfg.pc_mode = g_engine.GetSettings().pc_mode;
+      SaveSettings(g_cfg);
+      RefreshButtonEditor();
+      Notify(Widen(m.text));
       break;
     case EngineEvent::Info:
       break;  // só aparece no console
