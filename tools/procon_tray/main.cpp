@@ -49,6 +49,7 @@ enum MenuId : UINT {
   IdPcFast,
   IdPcEdit,
   IdExit,
+  IdGyroLevelBase = 400,  // + nível (1 a 10)
   IdProfileBase = 500,  // + índice em g_profiles
 };
 
@@ -201,6 +202,21 @@ void ShowMenu() {
                                                        : IdGyroOff;
   CheckMenuRadioItem(gyro, IdGyroOff, IdGyroStick, gyro_sel, MF_BYCOMMAND);
   AppendMenuW(gyro, MF_SEPARATOR, 0, nullptr);
+  HMENU sens = CreatePopupMenu();
+  int level = g_cfg.gyro == GyroMode::RightStick ? StickLevelOf(g_cfg.stick_full_speed_dps)
+                                                 : MouseLevelOf(g_cfg.mouse_pixels_per_degree);
+  for (int l = 1; l <= kGyroLevels; ++l) {
+    std::wstring label = std::to_wstring(l);
+    if (l == 1) label += L" (mais lenta)";
+    if (l == 5) label += L" (padrão)";
+    if (l == kGyroLevels) label += L" (mais rápida)";
+    AppendMenuW(sens, MF_STRING, IdGyroLevelBase + l, label.c_str());
+  }
+  CheckMenuRadioItem(sens, IdGyroLevelBase + 1, IdGyroLevelBase + kGyroLevels,
+                     IdGyroLevelBase + level, MF_BYCOMMAND);
+  std::wstring sens_label = L"Sensibilidade: " + std::to_wstring(level);
+  AppendMenuW(gyro, MF_POPUP | (g_cfg.gyro == GyroMode::Off ? MF_GRAYED : 0),
+              reinterpret_cast<UINT_PTR>(sens), sens_label.c_str());
   AppendMenuW(gyro, MF_STRING, IdRecalibrate, L"Recalibrar (deixe o controle parado)");
 
   HMENU layout = CreatePopupMenu();
@@ -280,6 +296,14 @@ void ShowMenu() {
 void OnCommand(UINT id) {
   if (id >= IdProfileBase && id < IdProfileBase + g_profiles.size()) {
     SelectProfile(g_profiles[id - IdProfileBase]);
+    ApplySettings();
+    return;
+  }
+  if (id > IdGyroLevelBase && id <= IdGyroLevelBase + kGyroLevels) {
+    int l = static_cast<int>(id - IdGyroLevelBase);
+    // Cada modo tem a sua escala; muda só a do modo em uso.
+    if (g_cfg.gyro == GyroMode::RightStick) g_cfg.stick_full_speed_dps = StickSpeedForLevel(l);
+    else g_cfg.mouse_pixels_per_degree = MouseSensForLevel(l);
     ApplySettings();
     return;
   }

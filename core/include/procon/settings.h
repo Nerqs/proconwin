@@ -21,8 +21,9 @@ struct Settings {
   // Para onde vai cada botão. Padrão: pela posição (B da Nintendo = A do Xbox).
   ButtonMap buttons = DefaultPositionalMap();
   GyroMode gyro = GyroMode::Off;
-  float mouse_pixels_per_degree = 20.0f;
-  float stick_full_speed_dps = 360.0f;
+  // Sensibilidade do giroscópio (padrão = nível 5, veja GyroLevel*).
+  float mouse_pixels_per_degree = 30.0f;
+  float stick_full_speed_dps = 110.0f;
   bool gyro_invert_x = false;
   bool gyro_invert_y = false;
   SteamMode steam = SteamMode::Auto;
@@ -45,6 +46,15 @@ Settings ParseSettings(const std::string& text);
 
 // Ajustes do giroscópio que saem destas configurações.
 GyroSettings ToGyroSettings(const Settings& s);
+
+// Sensibilidade do giroscópio em níveis de 1 (mais lenta) a 10 (mais
+// rápida), para o menu. Cada modo tem a sua escala.
+constexpr int kGyroLevels = 10;
+float MouseSensForLevel(int level);   // pixels por grau
+float StickSpeedForLevel(int level);  // °/s para o analógico ir até o fim
+// Nível mais próximo do valor salvo (o arquivo pode ter qualquer número).
+int MouseLevelOf(float pixels_per_degree);
+int StickLevelOf(float full_speed_dps);
 
 // Ajustes do modo computador que saem destas configurações.
 DesktopSettings ToDesktopSettings(const Settings& s);

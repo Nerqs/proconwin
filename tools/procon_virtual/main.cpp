@@ -126,6 +126,7 @@ int main(int argc, char** argv) {
   std::printf("Steam: %s\n", SteamModeName(cfg.steam));
   std::printf("Captura = recalibrar giroscópio | segurar HOME 3 s = desligar o controle\n"
               "segurar Captura 1 s ou P = modo computador (mouse e teclado)\n"
+              "+ e - = sensibilidade do giroscópio\n"
               "S = Estou usando a Steam (liga/desliga) | L = luz do HOME | Ctrl+C = sair\n");
   if (cfg.pc_mode) std::printf("Modo computador ligado.\n");
 
@@ -140,7 +141,19 @@ int main(int argc, char** argv) {
       int c = _getch();
       // O controle pode ter mudado o modo computador: parte do estado do motor.
       cfg = engine.GetSettings();
-      if (c == 'p' || c == 'P') {
+      if (c == '+' || c == '=' || c == '-') {
+        // Sensibilidade do giroscópio, um nível por tecla.
+        bool stick = cfg.gyro == GyroMode::RightStick;
+        int level = stick ? StickLevelOf(cfg.stick_full_speed_dps)
+                          : MouseLevelOf(cfg.mouse_pixels_per_degree);
+        level += c == '-' ? -1 : 1;
+        if (level < 1) level = 1;
+        if (level > kGyroLevels) level = kGyroLevels;
+        if (stick) cfg.stick_full_speed_dps = StickSpeedForLevel(level);
+        else cfg.mouse_pixels_per_degree = MouseSensForLevel(level);
+        engine.SetSettings(cfg);
+        std::printf("Sensibilidade do giroscópio: %d de %d\n", level, kGyroLevels);
+      } else if (c == 'p' || c == 'P') {
         cfg.pc_mode = !cfg.pc_mode;
         engine.SetSettings(cfg);
         std::printf("Modo computador %s\n", cfg.pc_mode ? "ligado" : "desligado");

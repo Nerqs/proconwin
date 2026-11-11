@@ -236,6 +236,16 @@ static void TestSettings() {
     CHECK(SourceFromId(SourceId(static_cast<Source>(i)), back) && back == static_cast<Source>(i));
   }
 
+  // Níveis de sensibilidade: o padrão é o nível 5, e cada nível é mais rápido.
+  CHECK(MouseLevelOf(def.mouse_pixels_per_degree) == 5);
+  CHECK(StickLevelOf(def.stick_full_speed_dps) == 5);
+  for (int l = 1; l < kGyroLevels; ++l) {
+    CHECK(MouseSensForLevel(l + 1) > MouseSensForLevel(l));
+    CHECK(StickSpeedForLevel(l + 1) < StickSpeedForLevel(l));  // menos °/s = mais rápido
+    CHECK(MouseLevelOf(MouseSensForLevel(l)) == l && StickLevelOf(StickSpeedForLevel(l)) == l);
+  }
+  CHECK(MouseSensForLevel(99) == MouseSensForLevel(kGyroLevels) && MouseLevelOf(1000) == 10);
+
   GyroSettings g = ToGyroSettings(s);
   CHECK(g.mode == GyroMode::RightStick && g.stick_full_speed_dps == 500 && g.invert_y);
 }
