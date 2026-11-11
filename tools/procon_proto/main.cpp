@@ -1,11 +1,13 @@
-// Protótipo da etapa 2: conecta no Pro Controller, mostra todas as entradas
-// calibradas e testa o rumble HD e os LEDs.
+// Protótipo: conecta no Pro Controller, mostra todas as entradas calibradas,
+// o mapeamento para Xbox 360 e o giroscópio já sem drift, e testa o rumble HD
+// e os LEDs.
 //
 // Controles durante o teste:
 //   A segurado  -> rumble grave (160 Hz)
 //   B segurado  -> rumble agudo (320 Hz)
 //   X segurado  -> rumble forte nas duas frequências
 //   Direcional  -> muda o LED do jogador (1 a 4)
+//   Captura     -> recalibra o drift do giroscópio (deixe o controle parado)
 //   + e - juntos (ou Ctrl+C) -> sair
 #include <hidapi.h>
 
@@ -15,8 +17,10 @@
 #include <cstdio>
 #include <string>
 
-#include "controller.h"
-#include "protocol.h"
+#include "procon/controller.h"
+#include "procon/gyro.h"
+#include "procon/mapping.h"
+#include "procon/protocol.h"
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -67,7 +71,7 @@ void PrintStatic(const Controller& c) {
               cal.imu_from_user ? "do usuário" : "de fábrica");
   std::printf("  esq. centro (%d, %d)  dir. centro (%d, %d)\n", cal.left.x_center,
               cal.left.y_center, cal.right.x_center, cal.right.y_center);
-  std::printf("\nA/B/X = rumble | direcional = LED | + e - juntos = sair\n\n");
+  std::printf("\nA/B/X = rumble | direcional = LED | Captura = recalibrar giroscópio | + e - juntos = sair\n\n");
 }
 
 }  // namespace
@@ -106,6 +110,15 @@ int main() {
     bool rumbling = false;
     uint32_t prev_buttons = 0;
 
+    const ButtonMap map = DefaultPositionalMap();
+    GyroCalibrator gyro_cal;
+    GyroSettings gs;
+    gs.mode = GyroMode::Mouse;  // só para mostrar na tela; não move o mouse
+    GyroOutput gyro_out(gs);
+    long mouse_total_x = 0, mouse_total_y = 0;
+    auto last_report = Clock::now();
+    bool first_report = true;
+
     while (!g_quit) {
       int n = pad.ReadReport(buf, sizeof(buf), 100);
       if (n < 0) {
@@ -136,6 +149,22 @@ int main() {
         rate_start = now;
       }
 
+      // Giroscópio: cada relatório traz 3 amostras.
+      float report_dt = std::chrono::duration<float>(now - last_report).count();
+      last_report = now;
+      if (first_report || report_dt > 0.1f) report_dt = 1.0f / 66.0f;
+      first_report = false;
+      std::array<float, 3> gyro_now{0, 0, 0};
+      for (const auto& smp : st.imu) {
+        gyro_cal.AddSample(smp, report_dt / 3);
+        gyro_now = gyro_cal.Correct(smp);
+        gyro_out.AddSample(gyro_now, report_dt / 3);
+      }
+      int mdx = 0, mdy = 0;
+      gyro_out.TakeMouseDelta(mdx, mdy);
+      mouse_total_x += mdx;
+      mouse_total_y += mdy;
+
       // Sair com + e - juntos.
       if ((st.buttons & BtnPlus) && (st.buttons & BtnMinus)) break;
 
@@ -145,6 +174,10 @@ int main() {
       if (pressed & BtnRight) pad.SetPlayerLights(0x02);
       if (pressed & BtnDown) pad.SetPlayerLights(0x04);
       if (pressed & BtnLeft) pad.SetPlayerLights(0x08);
+      if (pressed & BtnCapture) {
+        gyro_cal.StartManual();
+        mouse_total_x = mouse_total_y = 0;
+      }
       prev_buttons = st.buttons;
 
       // Rumble: precisa ser reenviado o tempo todo, senão o controle para.
@@ -166,24 +199,35 @@ int main() {
       if (now - last_draw < std::chrono::milliseconds(50)) continue;
       last_draw = now;
 
-      float gx = 0, gy = 0, gz = 0, ax = 0, ay = 0, az = 0;
-      for (const auto& s : st.imu) {
-        gx += s.gyro_dps[0] / 3; gy += s.gyro_dps[1] / 3; gz += s.gyro_dps[2] / 3;
-        ax += s.accel_g[0] / 3; ay += s.accel_g[1] / 3; az += s.accel_g[2] / 3;
+      float ax = 0, ay = 0, az = 0;
+      for (const auto& smp : st.imu) {
+        ax += smp.accel_g[0] / 3; ay += smp.accel_g[1] / 3; az += smp.accel_g[2] / 3;
       }
+      const XboxState xs = MapToXbox(st, map);
+      const auto& bias = gyro_cal.Bias();
+      const char* cal_status = gyro_cal.ManualInProgress() ? "calibrando, não mexa..."
+                               : gyro_cal.HasBias()         ? "ok"
+                                                            : "esperando o controle ficar parado";
 
       std::printf("\x1b[2K\rBotões: %s\n", ButtonsToString(st.buttons).c_str());
       std::printf("\x1b[2K\rAnalógico esq. % .2f % .2f (cru %4d %4d) | dir. % .2f % .2f (cru %4d %4d)\n",
                   st.lx, st.ly, st.raw_lx, st.raw_ly, st.rx, st.ry, st.raw_rx, st.raw_ry);
-      std::printf("\x1b[2K\rGiroscópio °/s  % 8.1f % 8.1f % 8.1f\n", gx, gy, gz);
+      std::printf("\x1b[2K\rXbox: %s | LT %3d RT %3d\n", XboxButtonsToString(xs.buttons).c_str(),
+                  xs.left_trigger, xs.right_trigger);
+      std::printf("\x1b[2K\rGiroscópio °/s  % 8.1f % 8.1f % 8.1f (sem drift)\n", gyro_now[0],
+                  gyro_now[1], gyro_now[2]);
+      std::printf("\x1b[2K\rDrift: % .2f % .2f % .2f °/s (%s)\n", bias[0], bias[1], bias[2],
+                  cal_status);
+      std::printf("\x1b[2K\rMouse acumulado: x %6ld  y %6ld (girar p/ direita = x sobe, inclinar p/ cima = y desce)\n",
+                  mouse_total_x, mouse_total_y);
       std::printf("\x1b[2K\rAcelerômetro G  % 8.2f % 8.2f % 8.2f\n", ax, ay, az);
       std::printf("\x1b[2K\rBateria %s%s | %.0f relatórios/s | %.1f tiques/relatório | %ld atrasados\n",
                   BatteryText(st.battery_level), st.charging ? " (carregando)" : "", hz,
                   avg_delta, late);
-      std::printf("\x1b[5A");  // volta 5 linhas para redesenhar no mesmo lugar
+      std::printf("\x1b[8A");  // volta 8 linhas para redesenhar no mesmo lugar
       std::fflush(stdout);
     }
-    std::printf("\x1b[5B\nEncerrando...\n");
+    std::printf("\x1b[8B\nEncerrando...\n");
     // O destrutor do Controller para o rumble e devolve o estado do USB.
   }
   hid_exit();

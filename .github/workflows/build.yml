@@ -1,0 +1,29 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurar
+        run: cmake -S . -B build
+      - name: Compilar
+        run: cmake --build build --config Release
+      - name: Testes
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  linux-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurar
+        run: cmake -S . -B build -DPROCON_BUILD_TOOLS=OFF
+      - name: Compilar
+        run: cmake --build build
+      - name: Testes
+        run: ctest --test-dir build --output-on-failure
