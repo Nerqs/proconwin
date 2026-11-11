@@ -61,6 +61,10 @@ jobs:
           Copy-Item third_party\licenses -Recurse pacote\licencas
           Get-ChildItem -Recurse pacote | Select-Object FullName
       - uses: actions/upload-artifact@v4
+        # Se a cota de armazenamento de artifacts da conta estiver cheia, o
+        # upload falha mas a compilação continua valendo.
+        continue-on-error: true
         with:
           name: proconwin-windows-x64
           path: pacote
+          retention-days: 7
