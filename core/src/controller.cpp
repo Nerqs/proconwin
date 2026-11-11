@@ -115,6 +115,20 @@ bool Controller::Subcommand(uint8_t id, const std::vector<uint8_t>& args,
   return false;
 }
 
+bool Controller::PowerOff() {
+  if (usb_ || !dev_) return false;
+  // Sem esperar resposta: o controle desconecta logo em seguida.
+  std::vector<uint8_t> msg;
+  msg.push_back(kOutputRumbleSubcmd);
+  msg.push_back(counter_);
+  counter_ = (counter_ + 1) & 0x0F;
+  msg.insert(msg.end(), kRumbleNeutral.begin(), kRumbleNeutral.end());
+  msg.insert(msg.end(), kRumbleNeutral.begin(), kRumbleNeutral.end());
+  msg.push_back(subcmd::SetHciState);
+  msg.push_back(0x00);
+  return Write(msg.data(), msg.size());
+}
+
 bool Controller::SpiRead(uint32_t addr, uint8_t size, std::vector<uint8_t>& out) {
   std::vector<uint8_t> args = {
       static_cast<uint8_t>(addr & 0xFF), static_cast<uint8_t>((addr >> 8) & 0xFF),

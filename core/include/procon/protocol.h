@@ -25,6 +25,7 @@ constexpr uint8_t kOutputUsb = 0x80;
 namespace subcmd {
 constexpr uint8_t DeviceInfo = 0x02;
 constexpr uint8_t SetReportMode = 0x03;
+constexpr uint8_t SetHciState = 0x06;  // 0x00 = desconecta e dorme
 constexpr uint8_t SpiRead = 0x10;
 constexpr uint8_t PlayerLights = 0x30;
 constexpr uint8_t HomeLight = 0x38;

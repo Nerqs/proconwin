@@ -48,6 +48,10 @@ class Controller {
   bool SetPlayerLights(uint8_t mask);  // bits 0-3 acesos, 4-7 piscando
   bool SetHomeLight(bool on);
 
+  // Desliga o controle (só no Bluetooth: ele desconecta e dorme até apertar
+  // um botão). No cabo não dá, porque o USB mantém o controle ligado.
+  bool PowerOff();
+
   const Calibration& Cal() const { return cal_; }
   const DeviceInfo& Info() const { return info_; }
 
