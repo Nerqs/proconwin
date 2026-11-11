@@ -14,7 +14,7 @@
 //                     analógico: °/s para o analógico chegar no fim)
 //
 // Durante o uso: Captura recalibra o drift (deixe o controle parado),
-// Ctrl+C sai.
+// segurar HOME por 3 s desliga o controle (Bluetooth), Ctrl+C sai.
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -142,7 +142,8 @@ int main(int argc, char** argv) {
                 opt.gyro == GyroMode::Off     ? "desligado"
                 : opt.gyro == GyroMode::Mouse ? "mouse"
                                               : "analógico direito");
-    std::printf("Captura = recalibrar giroscópio | Ctrl+C = sair\n");
+    std::printf("Captura = recalibrar giroscópio | segurar HOME 3 s = desligar o controle | "
+                "Ctrl+C = sair\n");
 
     const ButtonMap map = opt.nintendo_layout ? NintendoLabelMap() : DefaultPositionalMap();
     GyroSettings gs;
@@ -163,6 +164,8 @@ int main(int argc, char** argv) {
     bool rumbling = false;
     int current_player = -1;
     bool warned_submit = false;
+    bool home_held = false;
+    auto home_since = Clock::now();
 
     while (!g_quit) {
       int n = pad.ReadReport(buf, sizeof(buf), 100);
@@ -208,6 +211,28 @@ int main(int argc, char** argv) {
       if (pressed & BtnCapture) {
         gyro_cal.StartManual();
         std::printf("Recalibrando o giroscópio, deixe o controle parado...\n");
+      }
+
+      // Segurar HOME desliga o controle.
+      if (!(st.buttons & BtnHome)) {
+        home_held = false;
+      } else if (!home_held) {
+        home_held = true;
+        home_since = now;
+      } else if (now - home_since >= std::chrono::seconds(3)) {
+        if (pad.IsUsb()) {
+          std::printf("No cabo o controle não desliga (o USB mantém ele ligado). "
+                      "Desconecte o cabo para desligar.\n");
+          home_held = false;
+          home_since = now;
+        } else {
+          if (rumbling) pad.SendRumble(kRumbleNeutral, kRumbleNeutral);
+          rumbling = false;
+          pad.PowerOff();
+          std::printf("Controle desligado. Aperte um botão nele para ligar de novo "
+                      "e rode o procon_virtual outra vez.\n");
+          break;
+        }
       }
 
       XboxState xs = MapToXbox(st, map);
