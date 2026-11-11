@@ -6,6 +6,7 @@
 #include "procon/gyro.h"
 #include "procon/mapping.h"
 #include "procon/protocol.h"
+#include "procon/settings.h"
 #include "procon/steam.h"
 
 using namespace procon;
@@ -175,6 +176,39 @@ static void TestSteam() {
   CHECK(!ShouldPause(SteamMode::Never, true));
 }
 
+static void TestSettings() {
+  // Padrão sobrevive a ida e volta.
+  Settings def;
+  CHECK(ParseSettings(SerializeSettings(def)) == def);
+
+  Settings s;
+  s.nintendo_layout = true;
+  s.gyro = GyroMode::RightStick;
+  s.mouse_pixels_per_degree = 12.5f;
+  s.stick_full_speed_dps = 500;
+  s.gyro_invert_y = true;
+  s.steam = SteamMode::Never;
+  s.home_light = false;
+  CHECK(ParseSettings(SerializeSettings(s)) == s);
+
+  // Arquivo editado à mão: comentários, espaços, chave desconhecida e valor
+  // inválido não quebram nada.
+  Settings h = ParseSettings(
+      "# teste\n  giroscopio=mouse  \nlixo = 3\nsensibilidade_mouse = abc\n"
+      "luz_home = off # apaga\nsteam = talvez\n");
+  CHECK(h.gyro == GyroMode::Mouse);
+  CHECK(h.mouse_pixels_per_degree == def.mouse_pixels_per_degree);
+  CHECK(!h.home_light);
+  CHECK(h.steam == SteamMode::Auto);
+
+  // Valor fora da faixa é ignorado.
+  CHECK(ParseSettings("velocidade_analogico = -5").stick_full_speed_dps ==
+        def.stick_full_speed_dps);
+
+  GyroSettings g = ToGyroSettings(s);
+  CHECK(g.mode == GyroMode::RightStick && g.stick_full_speed_dps == 500 && g.invert_y);
+}
+
 int main() {
   TestRumble();
   TestSticks();
@@ -184,6 +218,7 @@ int main() {
   TestGyroMouse();
   TestGyroStick();
   TestSteam();
+  TestSettings();
   if (g_failures == 0) std::printf("Todos os testes passaram.\n");
   return g_failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

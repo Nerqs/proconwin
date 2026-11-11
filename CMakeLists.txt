@@ -19,6 +19,7 @@ add_library(procon_logic STATIC
   core/src/mapping.cpp
   core/src/gyro.cpp
   core/src/steam.cpp
+  core/src/settings.cpp
 )
 target_include_directories(procon_logic PUBLIC core/include)
 
@@ -45,14 +46,23 @@ if(PROCON_BUILD_TOOLS)
   target_link_libraries(procon_proto PRIVATE procon_device)
 
   if(WIN32)
-    # Controle de Xbox 360 virtual, via driver ProconWinXusb (modo usuário).
-    add_executable(procon_virtual
-      tools/procon_virtual/main.cpp
-      tools/procon_virtual/xusb_feeder.cpp
-      tools/procon_virtual/processes.cpp
+    # Motor: Pro Controller -> controle de Xbox 360 virtual (driver
+    # ProconWinXusb), giroscópio, Steam e reconexão.
+    add_library(procon_engine STATIC
+      tools/engine/engine.cpp
+      tools/engine/xusb_feeder.cpp
+      tools/engine/processes.cpp
     )
-    target_include_directories(procon_virtual PRIVATE driver/include)
-    target_link_libraries(procon_virtual PRIVATE procon_device setupapi)
+    target_include_directories(procon_engine PUBLIC tools/engine driver/include)
+    target_link_libraries(procon_engine PUBLIC procon_device setupapi)
+
+    # Versão de console.
+    add_executable(procon_virtual tools/procon_virtual/main.cpp)
+    target_link_libraries(procon_virtual PRIVATE procon_engine)
+
+    # App na bandeja (sem janela de console).
+    add_executable(procon_tray WIN32 tools/procon_tray/main.cpp)
+    target_link_libraries(procon_tray PRIVATE procon_engine shell32 ole32 advapi32 user32)
 
     add_executable(procon_install tools/procon_install/main.cpp)
     target_link_libraries(procon_install PRIVATE setupapi newdev shell32)

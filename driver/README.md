@@ -27,7 +27,16 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\instalar.ps1
    ```
-4. Conecte o Pro Controller e rode:
+4. Conecte o Pro Controller e abra o **`procon_tray.exe`**. Ele fica na bandeja, ao lado do relógio (pode estar escondido na setinha ^). Clique no ícone para ver o estado do controle e a bateria, e para mudar:
+   - giroscópio (desligado, mouse ou analógico direito) e recalibrar;
+   - layout dos botões (pela posição ou pelo nome);
+   - "Estou usando a Steam" e "Pausar sozinho com jogos da Steam";
+   - luz do botão HOME;
+   - iniciar com o Windows.
+
+   As escolhas ficam salvas em `%APPDATA%\ProconWin\config.ini`.
+
+   Também existe a versão de console, para testes:
    ```powershell
    .\procon_virtual.exe
    ```
