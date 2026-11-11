@@ -5,3 +5,4 @@ out/
 DMF/
 driver/x64/
 driver/ProconWinBus/x64/
+driver/bin/

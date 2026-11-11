@@ -49,4 +49,4 @@ msbuild DMF\Dmf.sln /t:"DmfK;DmfKModules_Template" /p:Configuration=Release /p:P
 msbuild driver\ProconWinBus.sln /p:Configuration=Release /p:Platform=x64
 ```
 
-O resultado fica em `driver\x64\Release\`. A CI do GitHub faz exatamente isso e publica o pacote pronto.
+O resultado fica em `driver\bin\x64\`. A CI do GitHub faz exatamente isso e publica o pacote pronto.

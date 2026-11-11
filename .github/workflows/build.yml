@@ -55,7 +55,7 @@ jobs:
       - name: Montar o pacote
         run: |
           New-Item -ItemType Directory -Force pacote\driver | Out-Null
-          Get-ChildItem -Recurse driver\x64\Release -Include *.sys,*.inf,*.cat,*.cer,*.pdb | Copy-Item -Destination pacote\driver
+          Get-ChildItem -Recurse driver\bin -Include *.sys,*.inf,*.cat,*.cer,*.pdb | Copy-Item -Destination pacote\driver
           Copy-Item build\Release\procon_proto.exe, build\Release\procon_virtual.exe, build\Release\procon_install.exe pacote\
           Copy-Item driver\README.md pacote\LEIA-ME.md
           Copy-Item third_party\licenses -Recurse pacote\licencas
