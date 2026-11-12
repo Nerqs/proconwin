@@ -8,6 +8,7 @@
 #include "procon/protocol.h"
 #include "procon/settings.h"
 #include "procon/steam.h"
+#include "procon/update.h"
 
 using namespace procon;
 
@@ -327,6 +328,48 @@ static void TestDesktop() {
   CHECK(std::abs(wheel + 12 * 120) <= 1);
 }
 
+static void TestUpdate() {
+  CHECK(CompareVersions("1.0.0", "1.0.0") == 0);
+  CHECK(CompareVersions("v1.2.10", "1.2.9") > 0);
+  CHECK(CompareVersions("1.2", "1.2.0") == 0);
+  CHECK(CompareVersions("1.0.0", "1.0.1") < 0);
+  CHECK(CompareVersions("lixo", "0.0.0") == 0);
+
+  // Trecho no formato da API do GitHub (campos que não usamos cortados).
+  const char* json = R"({
+    "html_url": "https://github.com/Nerqs/proconwin/releases/tag/v1.1.0",
+    "tag_name": "v1.1.0",
+    "name": "ProconWin 1.1.0",
+    "assets": [
+      {"name": "proconwin-windows-x64.zip", "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+       "browser_download_url": "https://github.com/Nerqs/proconwin/releases/download/v1.1.0/proconwin-windows-x64.zip"},
+      {"name": "ProconWin-Setup-1.1.0.exe", "uploader": {"html_url": "https://github.com/x"},
+       "digest": "sha256:ABCDEF0123456789abcdef0123456789ABCDEF0123456789abcdef0123456789",
+       "browser_download_url": "https://github.com/Nerqs/proconwin/releases/download/v1.1.0/ProconWin-Setup-1.1.0.exe"}
+    ]
+  })";
+  ReleaseInfo r;
+  CHECK(ParseLatestRelease(json, r));
+  CHECK(r.version == "1.1.0");
+  CHECK(r.page_url == "https://github.com/Nerqs/proconwin/releases/tag/v1.1.0");
+  CHECK(r.installer_url ==
+        "https://github.com/Nerqs/proconwin/releases/download/v1.1.0/ProconWin-Setup-1.1.0.exe");
+  CHECK(r.sha256 == "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789");
+
+  // Sem digest: instalador achado, hash vazio (não pega o do zip).
+  const char* nodigest = R"({"tag_name":"v2.0.0","assets":[
+    {"digest":"sha256:1111111111111111111111111111111111111111111111111111111111111111",
+     "browser_download_url":"https://x/proconwin-windows-x64.zip"},
+    {"browser_download_url":"https://x/ProconWin-Setup-2.0.0.exe"}]})";
+  CHECK(ParseLatestRelease(nodigest, r));
+  CHECK(r.installer_url == "https://x/ProconWin-Setup-2.0.0.exe");
+  CHECK(r.sha256.empty());
+
+  // Sem instalador ou sem tag: nada a oferecer.
+  CHECK(!ParseLatestRelease(R"({"tag_name":"v2.0.0","assets":[]})", r));
+  CHECK(!ParseLatestRelease(R"({"message":"Not Found"})", r));
+}
+
 int main() {
   TestRumble();
   TestSticks();
@@ -338,6 +381,7 @@ int main() {
   TestSteam();
   TestSettings();
   TestDesktop();
+  TestUpdate();
   if (g_failures == 0) std::printf("Todos os testes passaram.\n");
   return g_failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

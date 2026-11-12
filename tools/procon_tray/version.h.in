@@ -1,0 +1,4 @@
+// Gerado pelo CMake a partir de project(... VERSION ...). Não edite.
+#pragma once
+#define PROCONWIN_VERSION "@PROJECT_VERSION@"
+#define PROCONWIN_VERSION_RC @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0

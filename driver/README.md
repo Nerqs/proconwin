@@ -16,6 +16,8 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
 
 ## Instalar
 
+O jeito fácil é o instalador (veja o [README principal](../README.md#instalar)): ele faz os passos abaixo sozinho. Para instalar à mão, a partir do zip:
+
 1. Baixe o pacote [proconwin-windows-x64.zip](https://github.com/Nerqs/proconwin/releases/download/ultima-versao/proconwin-windows-x64.zip) (versão de teste, atualizada a cada mudança) e extraia numa pasta.
 2. Se você instalou o driver antigo (`ProconWinBus`) e ligou o modo de teste, remova antes:
    ```powershell
