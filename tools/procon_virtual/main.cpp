@@ -19,6 +19,7 @@
 //   --steam sempre    "Estou usando a Steam": fica sempre pausado
 //   --steam nunca     nunca pausa
 //   --luz-home off    apaga a luz do botão HOME (padrão: on)
+//   --sem-vibracao    desliga a vibração
 //   --modo-pc         começa no modo computador (mouse e teclado)
 //
 // Durante o uso: Captura recalibra o drift (deixe o controle parado),
@@ -75,6 +76,8 @@ bool ParseArgs(int argc, char** argv, Settings& o) {
       else if (v == "sempre") o.steam = SteamMode::Always;
       else if (v == "nunca") o.steam = SteamMode::Never;
       else return false;
+    } else if (a == "--sem-vibracao") {
+      o.rumble = false;
     } else if (a == "--modo-pc") {
       o.pc_mode = true;
     } else if (a == "--luz-home" && next(v)) {
@@ -113,7 +116,7 @@ int main(int argc, char** argv) {
     std::fprintf(stderr,
                  "Uso: procon_virtual [--layout posicao|nome] [--gyro off|mouse|stick] [--sens N]\n"
                  "                    [--steam auto|sempre|nunca] [--luz-home on|off]\n"
-                 "                    [--modo-pc]\n");
+                 "                    [--modo-pc] [--sem-vibracao]\n");
     return 1;
   }
   std::signal(SIGINT, OnSignal);
@@ -127,7 +130,7 @@ int main(int argc, char** argv) {
   std::printf("Captura = recalibrar giroscópio | segurar HOME 3 s = desligar o controle\n"
               "segurar Captura 1 s ou P = modo computador (mouse e teclado)\n"
               "+ e - = sensibilidade do giroscópio | D = diagnóstico\n"
-              "S = Estou usando a Steam (liga/desliga) | L = luz do HOME | Ctrl+C = sair\n");
+              "S = Estou usando a Steam (liga/desliga) | L = luz do HOME | V = vibração | Ctrl+C = sair\n");
   if (cfg.pc_mode) std::printf("Modo computador ligado.\n");
 
   Engine engine;
@@ -163,6 +166,10 @@ int main(int argc, char** argv) {
         cfg.steam = cfg.steam == SteamMode::Always ? base : SteamMode::Always;
         engine.SetSettings(cfg);
         std::printf("Steam: %s\n", SteamModeName(cfg.steam));
+      } else if (c == 'v' || c == 'V') {
+        cfg.rumble = !cfg.rumble;
+        engine.SetSettings(cfg);
+        std::printf("Vibração: %s\n", cfg.rumble ? "ligada" : "desligada");
       } else if (c == 'l' || c == 'L') {
         cfg.home_light = !cfg.home_light;
         engine.SetSettings(cfg);

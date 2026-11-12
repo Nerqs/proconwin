@@ -191,6 +191,7 @@ static void TestSettings() {
   s.gyro_invert_y = true;
   s.steam = SteamMode::Never;
   s.home_light = false;
+  s.rumble = false;
   s.pc_mode = true;
   s.pc_mouse_speed = 900;
   s.pc_buttons[static_cast<size_t>(Source::A)] = PcAction::AltTab;
@@ -205,6 +206,7 @@ static void TestSettings() {
   CHECK(h.gyro == GyroMode::Mouse);
   CHECK(h.mouse_pixels_per_degree == def.mouse_pixels_per_degree);
   CHECK(!h.home_light);
+  CHECK(h.rumble && !ParseSettings("vibracao = nao").rumble);
   CHECK(h.steam == SteamMode::Auto);
 
   // Valor fora da faixa é ignorado.

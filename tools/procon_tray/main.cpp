@@ -38,6 +38,7 @@ enum MenuId : UINT {
   IdSteamUsing,
   IdSteamAuto,
   IdHomeLight,
+  IdRumble,
   IdRecalibrate,
   IdAutostart,
   IdOpenConfig,
@@ -276,6 +277,7 @@ void ShowMenu() {
               MF_STRING | (g_steam_base == SteamMode::Auto ? MF_CHECKED : 0) |
                   (g_cfg.steam == SteamMode::Always ? MF_GRAYED : 0),
               IdSteamAuto, L"Pausar sozinho com jogos da Steam");
+  AppendMenuW(menu, MF_STRING | (g_cfg.rumble ? MF_CHECKED : 0), IdRumble, L"Vibração");
   AppendMenuW(menu, MF_STRING | (g_cfg.home_light ? MF_CHECKED : 0), IdHomeLight,
               L"Luz do botão HOME");
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
@@ -340,6 +342,7 @@ void OnCommand(UINT id) {
       if (g_cfg.steam != SteamMode::Always) g_cfg.steam = g_steam_base;
       break;
     case IdHomeLight: g_cfg.home_light = !g_cfg.home_light; break;
+    case IdRumble: g_cfg.rumble = !g_cfg.rumble; break;
     case IdRecalibrate:
       g_engine.RecalibrateGyro();
       return;
