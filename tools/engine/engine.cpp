@@ -137,7 +137,8 @@ void Engine::Run() {
   InputState st;
   uint8_t buf[64];
   uint32_t prev_buttons = 0;
-  auto last_report = Clock::now();
+  auto last_report = Clock::now();  // último relatório completo
+  int silent_resets = 0;  // vezes seguidas que o controle ficou mudo
   auto last_rumble = Clock::now();
   bool rumbling = false;
   int current_player = -1;
@@ -328,6 +329,25 @@ void Engine::Run() {
       current_player = player;
     }
 
+    // O controle responde, mas não manda mais o relatório completo (0x30):
+    // outro programa (um jogo que lê o controle sozinho, por exemplo) mudou o
+    // modo dele. Configura de novo; se não voltar, reconecta do zero.
+    if ((n == 0 || buf[0] != kInputFull) && now - last_report > std::chrono::seconds(2)) {
+      std::string err;
+      ++silent_resets;
+      if (silent_resets <= 2 && pad->Initialize(err)) {
+        pad->SetHomeLight(cfg.home_light);
+        current_player = -1;  // acende o LED do jogador de novo
+        Emit(EngineEvent::Info, "O controle parou de mandar os botões; configurado de novo.");
+      } else {
+        release();
+        Emit(EngineEvent::Info, "O controle parou de mandar os botões; reconectando...");
+        next_open_try = now;
+        silent_resets = 0;
+      }
+      last_report = Clock::now();
+      continue;
+    }
     if (n == 0 || buf[0] != kInputFull) continue;
     if (!ParseFullReport(buf, static_cast<size_t>(n), pad->Cal(), kDeadzone, st)) continue;
 
@@ -341,6 +361,7 @@ void Engine::Run() {
       s.ry = st.ry;
     });
 
+    silent_resets = 0;
     float dt = std::chrono::duration<float>(now - last_report).count();
     last_report = now;
     if (dt <= 0 || dt > 0.1f) dt = 1.0f / 66.0f;
