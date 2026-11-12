@@ -269,9 +269,9 @@ bool CreateMainWindow(HINSTANCE inst) {
   wc.cbSize = sizeof(wc);
   wc.lpfnWndProc = WndProc;
   wc.hInstance = inst;
-  wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+  wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
   wc.hIcon = LoadIconW(inst, MAKEINTRESOURCEW(1));
-  if (!wc.hIcon) wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+  if (!wc.hIcon) wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
   wc.lpszClassName = kClass;
   RegisterClassExW(&wc);
 
