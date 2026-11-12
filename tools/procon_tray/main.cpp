@@ -1,6 +1,6 @@
-// procon_tray: o ProconWin como app na bandeja do Windows (ao lado do
-// relógio). Clique com o botão direito no ícone para ver o estado do
-// controle e mudar as opções. As escolhas ficam salvas em
+// procon_tray: o app do ProconWin. Abre uma janela com todas as opções e
+// fica na bandeja do Windows (ao lado do relógio): clique no ícone para abrir
+// a janela, ou com o botão direito para o menu rápido. As escolhas ficam salvas em
 // %APPDATA%\ProconWin\config.ini.
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -10,13 +10,14 @@
 #include <shellapi.h>
 #include <shlobj.h>
 
+#include <cstring>
 #include <string>
 #include <vector>
 
-#include "editor.h"
 #include "engine.h"
 #include "procon/settings.h"
 #include "storage.h"
+#include "window.h"
 
 using namespace procon;
 
@@ -24,6 +25,7 @@ namespace {
 
 constexpr UINT kTrayMsg = WM_APP + 1;   // eventos do ícone
 constexpr UINT kEngineMsg = WM_APP + 2; // eventos do motor (lParam = EventMsg*)
+constexpr UINT kShowMsg = WM_APP + 3;   // outra cópia pediu para mostrar a janela
 constexpr UINT_PTR kTimerId = 1;
 constexpr UINT kIconId = 1;
 constexpr wchar_t kRunKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
@@ -51,6 +53,7 @@ enum MenuId : UINT {
   IdPcFast,
   IdPcEdit,
   IdExit,
+  IdOpenWindow,
   IdGyroLevelBase = 400,  // + nível (1 a 10)
   IdProfileBase = 500,  // + índice em g_profiles
 };
@@ -86,7 +89,8 @@ void SetAutostart(bool on) {
   if (on) {
     wchar_t exe[MAX_PATH];
     GetModuleFileNameW(nullptr, exe, MAX_PATH);
-    std::wstring cmd = L"\"" + std::wstring(exe) + L"\"";
+    // Ao iniciar com o Windows, abre só na bandeja (sem a janela).
+    std::wstring cmd = L"\"" + std::wstring(exe) + L"\" --bandeja";
     RegSetValueExW(key, kRunValue, 0, REG_SZ, reinterpret_cast<const BYTE*>(cmd.c_str()),
                    static_cast<DWORD>((cmd.size() + 1) * sizeof(wchar_t)));
   } else {
@@ -160,24 +164,46 @@ void ApplySettings() {
   SaveSettings(g_cfg);
   // Com um perfil em uso, botões e giroscópio vão para ele também.
   if (!g_cfg.profile.empty()) SaveProfile(g_cfg.profile, g_cfg);
-  RefreshButtonEditor();
+  RefreshMainWindow();
 }
 
 constexpr float kPcSlow = 900.0f, kPcNormal = 1600.0f, kPcFast = 2600.0f;
 
-void OpenEditor(bool pc_view = false) {
-  EditorCallbacks cb;
-  cb.get = [] { return g_cfg; };
-  cb.apply = [](const Settings& s) {
+void ShowDiagnostics() {
+  std::wstring text = Widen(DiagnosticsText(g_engine.GetStatus(), g_engine.GetSettings()));
+  text += L"\n\nSegure um botão (por exemplo B) no controle e aperte Enter aqui para "
+          L"ver de novo com ele apertado.";
+  while (MessageBoxW(nullptr, text.c_str(), L"ProconWin - diagnóstico",
+                     MB_OKCANCEL | MB_ICONINFORMATION) == IDOK) {
+    text = Widen(DiagnosticsText(g_engine.GetStatus(), g_engine.GetSettings())) +
+           L"\n\nOK = atualizar, Cancelar = fechar.";
+  }
+}
+
+void OpenWindow() {
+  AppHooks h;
+  h.get = [] { return g_cfg; };
+  h.apply = [](const Settings& s) {
     g_cfg = s;
     g_engine.SetSettings(g_cfg);
     SaveSettings(g_cfg);
+    if (!g_cfg.profile.empty()) SaveProfile(g_cfg.profile, g_cfg);
+    UpdateTip();
   };
-  cb.pressed_buttons = [] {
-    EngineStatus st = g_engine.GetStatus();
-    return st.connected ? st.buttons : 0u;
+  h.status = [] { return g_engine.GetStatus(); };
+  h.status_text = [] { return StatusText(); };
+  h.autostart = [] { return AutostartEnabled(); };
+  h.set_autostart = [](bool on) { SetAutostart(on); };
+  h.steam_base = [] { return g_steam_base; };
+  h.set_steam_base = [](SteamMode m) { g_steam_base = m; };
+  h.recalibrate = [] { g_engine.RecalibrateGyro(); };
+  h.open_folder = [] {
+    CreateDirectoryW(ConfigDir().c_str(), nullptr);
+    ShellExecuteW(nullptr, L"open", ConfigDir().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
   };
-  ShowButtonEditor(g_inst, cb, pc_view);
+  h.diagnostics = [] { ShowDiagnostics(); };
+  h.exit_app = [] { DestroyWindow(g_wnd); };
+  ShowMainWindow(g_inst, h);
 }
 
 void SelectProfile(const std::string& name) {
@@ -261,6 +287,8 @@ void ShowMenu() {
   AppendMenuW(pc, MF_STRING, IdPcEdit, L"Escolher as teclas de cada botão...");
 
   HMENU menu = CreatePopupMenu();
+  AppendMenuW(menu, MF_STRING, IdOpenWindow, L"Abrir o ProconWin");
+  SetMenuDefaultItem(menu, IdOpenWindow, FALSE);
   AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, StatusText().c_str());
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(gyro), L"Giroscópio");
@@ -329,10 +357,11 @@ void OnCommand(UINT id) {
     case IdPcNormal: g_cfg.pc_mouse_speed = kPcNormal; break;
     case IdPcFast: g_cfg.pc_mouse_speed = kPcFast; break;
     case IdPcEdit:
-      OpenEditor(true);
+      OpenWindow();
       return;
     case IdEditButtons:
-      OpenEditor();
+    case IdOpenWindow:
+      OpenWindow();
       return;
     case IdSteamUsing:
       g_cfg.steam = g_cfg.steam == SteamMode::Always ? g_steam_base : SteamMode::Always;
@@ -349,17 +378,9 @@ void OnCommand(UINT id) {
     case IdAutostart:
       SetAutostart(!AutostartEnabled());
       return;
-    case IdDiagnostics: {
-      std::wstring text = Widen(DiagnosticsText(g_engine.GetStatus(), g_engine.GetSettings()));
-      text += L"\n\nSegure um botão (por exemplo B) no controle e aperte Enter aqui para "
-              L"ver de novo com ele apertado.";
-      while (MessageBoxW(nullptr, text.c_str(), L"ProconWin - diagnóstico",
-                         MB_OKCANCEL | MB_ICONINFORMATION) == IDOK) {
-        text = Widen(DiagnosticsText(g_engine.GetStatus(), g_engine.GetSettings())) +
-               L"\n\nOK = atualizar, Cancelar = fechar.";
-      }
+    case IdDiagnostics:
+      ShowDiagnostics();
       return;
-    }
     case IdOpenConfig:
       CreateDirectoryW(ConfigDir().c_str(), nullptr);
       ShellExecuteW(nullptr, L"open", ConfigDir().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
@@ -392,7 +413,7 @@ void OnEngineEvent(const EventMsg& m) {
       // Mudou pelo controle: guarda para valer na próxima vez que abrir.
       g_cfg.pc_mode = g_engine.GetSettings().pc_mode;
       SaveSettings(g_cfg);
-      RefreshButtonEditor();
+      RefreshMainWindow();
       Notify(Widen(m.text));
       break;
     case EngineEvent::Info:
@@ -422,10 +443,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
   }
   switch (msg) {
     case kTrayMsg:
-      if (LOWORD(lp) == WM_RBUTTONUP || LOWORD(lp) == WM_LBUTTONUP ||
-          LOWORD(lp) == WM_CONTEXTMENU) {
-        ShowMenu();
-      }
+      // Clique esquerdo abre a janela; direito mostra o menu.
+      if (LOWORD(lp) == WM_LBUTTONUP) OpenWindow();
+      else if (LOWORD(lp) == WM_RBUTTONUP || LOWORD(lp) == WM_CONTEXTMENU) ShowMenu();
+      return 0;
+    case kShowMsg:
+      OpenWindow();
       return 0;
     case kEngineMsg: {
       auto* m = reinterpret_cast<EventMsg*>(lp);
@@ -452,14 +475,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 
 }  // namespace
 
-int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
-  // Só uma cópia aberta por vez (as duas brigariam pelo controle).
+int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR cmdline, int) {
+  // Só uma cópia aberta por vez (as duas brigariam pelo controle). Abrir de
+  // novo só mostra a janela da cópia que já está rodando.
   HANDLE mutex = CreateMutexW(nullptr, TRUE, L"Local\\ProconWinTray");
   if (GetLastError() == ERROR_ALREADY_EXISTS) {
-    MessageBoxW(nullptr, L"O ProconWin já está aberto. Procure o ícone ao lado do relógio.",
-                L"ProconWin", MB_OK | MB_ICONINFORMATION);
+    HWND other = FindWindowW(L"ProconWinTray", nullptr);
+    if (other) {
+      DWORD pid = 0;
+      GetWindowThreadProcessId(other, &pid);
+      AllowSetForegroundWindow(pid);
+      PostMessageW(other, kShowMsg, 0, 0);
+    } else {
+      MessageBoxW(nullptr, L"O ProconWin já está aberto. Procure o ícone ao lado do relógio.",
+                  L"ProconWin", MB_OK | MB_ICONINFORMATION);
+    }
     return 0;
   }
+  bool tray_only = cmdline && std::strstr(cmdline, "--bandeja") != nullptr;
 
   g_inst = inst;
   g_cfg = LoadSettings();
@@ -485,12 +518,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR, int) {
     if (!PostMessageW(wnd, kEngineMsg, 0, reinterpret_cast<LPARAM>(m))) delete m;
   });
   UpdateTip();
+  if (!tray_only) OpenWindow();
 
   MSG msg;
   while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
-    // Tab, Enter e Esc dentro do editor.
-    HWND editor = ButtonEditorWindow();
-    if (editor && IsDialogMessageW(editor, &msg)) continue;
+    // Tab, Enter e Esc nas janelas.
+    if (HandleWindowMessage(&msg)) continue;
     TranslateMessage(&msg);
     DispatchMessageW(&msg);
   }
