@@ -27,9 +27,16 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\instalar.ps1
    ```
-4. Conecte o Pro Controller e abra o **`procon_tray.exe`**. Ele fica na bandeja, ao lado do relógio (pode estar escondido na setinha ^). Clique no ícone para ver o estado do controle e a bateria, e para mudar:
+4. Conecte o Pro Controller e abra o **`procon_tray.exe`**. Abre a janela do ProconWin, com tudo num lugar só:
+   - em cima, o estado do controle e a bateria;
+   - à esquerda, um desenho do Pro Controller: o botão que você aperta no controle acende, e clicando num botão do desenho você escolhe a função dele (botão do Xbox, ou tecla no modo computador). Contorno laranja = botão fora do padrão;
+   - à direita, o perfil em uso, **Novo perfil...** (nome do jogo, começando dos botões atuais ou de um padrão), giroscópio e sensibilidade, e as opções.
+
+   Fechar a janela deixa o programa rodando na bandeja, ao lado do relógio (pode estar escondido na setinha ^). Clique no ícone para abrir a janela de novo, ou com o botão direito para o menu rápido. **Sair** fecha de vez. Com "Iniciar com o Windows", ele abre só na bandeja.
+
+   Opções da janela e do menu:
    - giroscópio (desligado, mouse ou analógico direito), a sensibilidade (1 a 10, cada modo tem a sua) e recalibrar;
-   - botões: pela posição, pelo nome, ou do seu jeito em **Botões > Editar botões e perfis...**;
+   - botões: pela posição, pelo nome, ou do seu jeito no desenho;
    - perfil em uso (um por jogo, por exemplo);
    - modo computador (mouse e teclado) e a velocidade do mouse;
    - "Estou usando a Steam" e "Pausar sozinho com jogos da Steam";
