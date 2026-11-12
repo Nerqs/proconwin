@@ -25,20 +25,20 @@ const ButtonShape kButtons[] = {
     {Source::L, Shape::Rect, 111, 40, 98, 20, L"L"},
     {Source::ZR, Shape::Rect, 329, 16, 98, 20, L"ZR"},
     {Source::R, Shape::Rect, 329, 40, 98, 20, L"R"},
-    {Source::Minus, Shape::Circle, 178, 80, 20, 20, L"\x2212"},
-    {Source::Plus, Shape::Circle, 262, 80, 20, 20, L"+"},
-    {Source::Capture, Shape::Rect, 195, 118, 20, 20, L"\x25CF"},
-    {Source::Home, Shape::Circle, 245, 118, 24, 24, L"\x2302"},
-    {Source::LStick, Shape::Circle, 118, 104, 54, 54, L"L3"},
-    {Source::RStick, Shape::Circle, 272, 172, 54, 54, L"R3"},
-    {Source::Up, Shape::Rect, 170, 150, 20, 20, L"\x2191"},
-    {Source::Down, Shape::Rect, 170, 194, 20, 20, L"\x2193"},
-    {Source::Left, Shape::Rect, 148, 172, 20, 20, L"\x2190"},
-    {Source::Right, Shape::Rect, 192, 172, 20, 20, L"\x2192"},
-    {Source::X, Shape::Circle, 324, 80, 26, 26, L"X"},
-    {Source::B, Shape::Circle, 324, 128, 26, 26, L"B"},
-    {Source::Y, Shape::Circle, 300, 104, 26, 26, L"Y"},
-    {Source::A, Shape::Circle, 348, 104, 26, 26, L"A"},
+    {Source::Minus, Shape::Circle, 182, 82, 20, 20, L"\x2212"},
+    {Source::Plus, Shape::Circle, 258, 82, 20, 20, L"+"},
+    {Source::Capture, Shape::Rect, 196, 118, 20, 20, L"\x25CF"},
+    {Source::Home, Shape::Circle, 244, 118, 24, 24, L"\x2302"},
+    {Source::LStick, Shape::Circle, 114, 108, 54, 54, L"L3"},
+    {Source::RStick, Shape::Circle, 282, 176, 54, 54, L"R3"},
+    {Source::Up, Shape::Rect, 158, 154, 20, 20, L"\x2191"},
+    {Source::Down, Shape::Rect, 158, 198, 20, 20, L"\x2193"},
+    {Source::Left, Shape::Rect, 136, 176, 20, 20, L"\x2190"},
+    {Source::Right, Shape::Rect, 180, 176, 20, 20, L"\x2192"},
+    {Source::X, Shape::Circle, 326, 82, 26, 26, L"X"},
+    {Source::B, Shape::Circle, 326, 134, 26, 26, L"B"},
+    {Source::Y, Shape::Circle, 300, 108, 26, 26, L"Y"},
+    {Source::A, Shape::Circle, 352, 108, 26, 26, L"A"},
 };
 static_assert(sizeof(kButtons) / sizeof(kButtons[0]) == kSources, "um desenho por botão");
 
@@ -86,11 +86,14 @@ void Paint(HWND wnd, HDC dc) {
   Xf t = Transform(wnd);
 
   // Corpo: retângulo arredondado + as duas pegadas, como uma peça só.
-  HRGN body = CreateRoundRectRgn(t.X(40), t.Y(52), t.X(400), t.Y(182), t.L(80), t.L(80));
-  HRGN gl = CreateEllipticRgn(t.X(42), t.Y(118), t.X(168), t.Y(272));
-  HRGN gr = CreateEllipticRgn(t.X(272), t.Y(118), t.X(398), t.Y(272));
+  HRGN body = CreateRoundRectRgn(t.X(40), t.Y(52), t.X(400), t.Y(196), t.L(100), t.L(100));
+  HRGN mid = CreateRoundRectRgn(t.X(140), t.Y(140), t.X(300), t.Y(222), t.L(80), t.L(80));
+  HRGN gl = CreateEllipticRgn(t.X(36), t.Y(108), t.X(178), t.Y(272));
+  HRGN gr = CreateEllipticRgn(t.X(262), t.Y(108), t.X(404), t.Y(272));
+  CombineRgn(body, body, mid, RGN_OR);
   CombineRgn(body, body, gl, RGN_OR);
   CombineRgn(body, body, gr, RGN_OR);
+  DeleteObject(mid);
   HBRUSH body_brush = CreateSolidBrush(RGB(58, 60, 66));
   HBRUSH edge = CreateSolidBrush(RGB(28, 28, 32));
   FillRgn(dc, body, body_brush);
