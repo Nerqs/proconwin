@@ -53,7 +53,7 @@ bool Settings::operator==(const Settings& o) const {
   return buttons == o.buttons && profile == o.profile && gyro == o.gyro &&
          mouse_pixels_per_degree == o.mouse_pixels_per_degree &&
          stick_full_speed_dps == o.stick_full_speed_dps && gyro_invert_x == o.gyro_invert_x &&
-         gyro_invert_y == o.gyro_invert_y && steam == o.steam && home_light == o.home_light &&
+         gyro_invert_y == o.gyro_invert_y && steam == o.steam && home_light == o.home_light && rumble == o.rumble &&
          pc_mode == o.pc_mode && pc_buttons == o.pc_buttons &&
          pc_mouse_speed == o.pc_mouse_speed;
 }
@@ -68,6 +68,7 @@ std::string SerializeSettings(const Settings& s) {
   o << "inverter_y = " << (s.gyro_invert_y ? "sim" : "nao") << "\n";
   o << "steam = " << SteamName(s.steam) << "\n";
   o << "luz_home = " << (s.home_light ? "sim" : "nao") << "\n";
+  o << "vibracao = " << (s.rumble ? "sim" : "nao") << "\n";
   if (!s.profile.empty()) o << "perfil = " << s.profile << "\n";
   o << "# Botões: botao.<botão da Nintendo> = <botão do Xbox>\n";
   for (size_t i = 0; i < s.buttons.size(); ++i) {
@@ -118,6 +119,8 @@ Settings ParseSettings(const std::string& text) {
       else if (v == "nunca") s.steam = SteamMode::Never;
     } else if (key == "luz_home") {
       ParseBool(v, s.home_light);
+    } else if (key == "vibracao") {
+      ParseBool(v, s.rumble);
     } else if (key == "perfil") {
       s.profile = SanitizeProfileName(v);
     } else if (key == "modo_pc") {

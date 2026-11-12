@@ -28,6 +28,7 @@ struct Settings {
   bool gyro_invert_y = false;
   SteamMode steam = SteamMode::Auto;
   bool home_light = true;
+  bool rumble = true;  // vibração vinda dos jogos (e o aviso do modo computador)
   // Modo computador: o controle vira mouse e teclado, e o controle de Xbox
   // virtual fica parado. É global (não muda com o perfil).
   bool pc_mode = false;

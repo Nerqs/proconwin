@@ -33,6 +33,7 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
    - perfil em uso (um por jogo, por exemplo);
    - modo computador (mouse e teclado) e a velocidade do mouse;
    - "Estou usando a Steam" e "Pausar sozinho com jogos da Steam";
+   - vibração (liga e desliga);
    - luz do botão HOME;
    - iniciar com o Windows.
 
@@ -63,7 +64,7 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
    ```powershell
    .\procon_virtual.exe
    ```
-   Opções: `--gyro mouse` (giroscópio move o mouse), `--gyro stick` (giroscópio soma no analógico direito), `--sens N` (sensibilidade), `--layout nome` (A da Nintendo = A do Xbox), `--luz-home off` (apaga a luz do botão HOME; a tecla **L** acende e apaga com o programa aberto), `--modo-pc` (começa no modo computador; a tecla **P** liga e desliga). As teclas **+** e **-** mudam a sensibilidade do giroscópio.
+   Opções: `--gyro mouse` (giroscópio move o mouse), `--gyro stick` (giroscópio soma no analógico direito), `--sens N` (sensibilidade), `--layout nome` (A da Nintendo = A do Xbox), `--luz-home off` (apaga a luz do botão HOME; a tecla **L** acende e apaga com o programa aberto), `--modo-pc` (começa no modo computador; a tecla **P** liga e desliga). As teclas **+** e **-** mudam a sensibilidade do giroscópio. A tecla **V** liga e desliga a vibração (ou `--sem-vibracao`).
 
    **Steam:** com a Steam aberta você não precisa fechar mais nada. Quando um jogo aberto pela Steam está rodando, o `procon_virtual` pausa sozinho e deixa o Steam Input usar o controle, sem entrada dobrada. Quando o jogo fecha, ele volta. A tecla **S** liga o modo "Estou usando a Steam" (fica pausado o tempo todo, por exemplo no Big Picture). Também dá para escolher na linha de comando: `--steam auto` (padrão), `--steam sempre` ou `--steam nunca`.
 

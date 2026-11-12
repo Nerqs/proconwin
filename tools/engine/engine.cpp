@@ -308,7 +308,9 @@ void Engine::Run() {
     now = Clock::now();
 
     // Rumble vindo do jogo: motor forte = frequência baixa, fraco = alta.
-    uint8_t big_m = virt.LargeMotor(), little_m = virt.SmallMotor();
+    // Com a vibração desligada, o pedido do jogo é ignorado.
+    uint8_t big_m = cfg.rumble ? virt.LargeMotor() : 0;
+    uint8_t little_m = cfg.rumble ? virt.SmallMotor() : 0;
     if ((big_m || little_m) && now - last_rumble > std::chrono::milliseconds(15)) {
       auto side = EncodeRumble(320.0f, little_m / 255.0f, 160.0f, big_m / 255.0f);
       pad->SendRumble(side, side);
@@ -367,7 +369,7 @@ void Engine::Run() {
         settings_.pc_mode = pc;
         status_.pc_mode = pc;
       }
-      if (pad) {
+      if (pad && cfg.rumble) {
         // Vibra uma vez para confirmar sem precisar olhar a tela.
         pad->SendRumble(EncodeRumble(320.0f, 0.5f, 160.0f, 0.5f),
                         EncodeRumble(320.0f, 0.5f, 160.0f, 0.5f));
