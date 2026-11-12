@@ -335,6 +335,10 @@ void Engine::Run() {
       s.battery = st.battery_level;
       s.charging = st.charging;
       s.buttons = st.buttons;
+      s.lx = st.lx;
+      s.ly = st.ly;
+      s.rx = st.rx;
+      s.ry = st.ry;
     });
 
     float dt = std::chrono::duration<float>(now - last_report).count();

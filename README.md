@@ -1,8 +1,19 @@
-# proconwin
+# ProconWin
 
-Suporte nativo ao Pro Controller do Switch no Windows, sem depender da Steam e sem atrapalhar o Steam Input.
+Suporte nativo ao Pro Controller do Switch no Windows: o controle aparece como um controle de Xbox 360, com giroscópio, vibração, perfis por jogo e um modo para usar o PC (mouse e teclado), sem modo de teste, sem desligar o Secure Boot e sem atrapalhar o Steam Input.
 
-**Estado atual:** etapa 3 em andamento. O protótipo de console já lê o controle por USB e Bluetooth, com calibração, giroscópio sem drift, rumble HD e LEDs, e mostra como os botões ficam num controle de Xbox 360. O controle virtual (driver) ainda não existe.
+**Estado atual:** o Pro Controller do Switch 1 funciona por USB e Bluetooth. Falta o instalador. Outros controles da Nintendo vêm depois.
+
+- Controle de Xbox 360 virtual (driver em modo usuário, UMDF2), funciona em qualquer jogo com XInput
+- Botões pela posição (padrão) ou pelo nome, editor de botões e perfis
+- Giroscópio como mouse ou como analógico direito, com sensibilidade de 1 a 10
+- Modo computador: analógico direito = mouse, ZL/ZR = cliques, outros botões = teclas
+- Pausa sozinho quando um jogo da Steam abre (o Steam Input assume), ou pelo botão "Estou usando a Steam"
+- Reconexão automática, bateria, luz do HOME, vibração liga/desliga, segurar HOME 3 s desliga o controle
+
+Como instalar e usar: veja [driver/README.md](driver/README.md).
+
+> O ProconWin é um projeto independente, **sem nenhuma ligação com a Nintendo**, a Microsoft ou a Valve. Nintendo Switch e Pro Controller são marcas da Nintendo; Xbox é marca da Microsoft; Steam é marca da Valve. Elas aparecem aqui só para dizer com o que o programa funciona.
 
 ## Estrutura
 
@@ -49,5 +60,10 @@ Para conectar por Bluetooth: Configurações > Bluetooth > adicionar dispositivo
 
 1. ~~Referência do protocolo~~
 2. ~~Protótipo de leitura~~
-3. Controle virtual de Xbox 360 + convivência com a Steam (em andamento)
-4. App na bandeja, editor de botões, reconexão, instalador
+3. ~~Controle virtual de Xbox 360 + convivência com a Steam~~
+4. App na bandeja, editor de botões, reconexão (feito); instalador com atualização (em andamento)
+5. Outros controles da Nintendo
+
+## Licença
+
+[MIT](LICENSE). Código de terceiros e as licenças deles: [third_party/README.md](third_party/README.md).

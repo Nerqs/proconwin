@@ -62,15 +62,37 @@ if(PROCON_BUILD_TOOLS)
     add_executable(procon_virtual tools/procon_virtual/main.cpp)
     target_link_libraries(procon_virtual PRIVATE procon_engine)
 
+    # Dear ImGui (MIT): desenha a janela do app sobre Direct3D 11.
+    FetchContent_Declare(
+      imgui
+      GIT_REPOSITORY https://github.com/ocornut/imgui.git
+      GIT_TAG        v1.91.5
+    )
+    FetchContent_MakeAvailable(imgui)
+    add_library(imgui STATIC
+      ${imgui_SOURCE_DIR}/imgui.cpp
+      ${imgui_SOURCE_DIR}/imgui_draw.cpp
+      ${imgui_SOURCE_DIR}/imgui_tables.cpp
+      ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+      ${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
+      ${imgui_SOURCE_DIR}/backends/imgui_impl_dx11.cpp
+    )
+    target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
+    # Sem gamepad no imgui: ele leria pelo XInput o próprio controle virtual.
+    target_compile_definitions(imgui PUBLIC IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+                               IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
+    target_link_libraries(imgui PUBLIC d3d11 dxgi d3dcompiler dwmapi)
+
     # App na bandeja (sem janela de console).
     add_executable(procon_tray WIN32
       tools/procon_tray/main.cpp
       tools/procon_tray/storage.cpp
       tools/procon_tray/labels.cpp
-      tools/procon_tray/pad_view.cpp
       tools/procon_tray/window.cpp
+      tools/procon_tray/ui/app_ui.cpp
       tools/procon_tray/procon_tray.manifest)
-    target_link_libraries(procon_tray PRIVATE procon_engine shell32 ole32 advapi32 user32 gdi32 comctl32)
+    target_link_libraries(procon_tray PRIVATE procon_engine imgui shell32 ole32 advapi32 user32
+                          gdi32 comctl32 dwmapi)
 
     add_executable(procon_install tools/procon_install/main.cpp)
     target_link_libraries(procon_install PRIVATE setupapi newdev shell32)

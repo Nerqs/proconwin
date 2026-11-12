@@ -21,6 +21,7 @@ struct EngineStatus {
   int battery = 0;  // 0 a 8 (8 = cheia)
   bool charging = false;
   uint32_t buttons = 0;  // botões do Pro Controller apertados agora (bits Btn*)
+  float lx = 0, ly = 0, rx = 0, ry = 0;  // analógicos agora (-1 a 1, Y para cima)
   bool paused = false;  // pausado por causa da Steam
   bool pc_mode = false;  // modo computador ligado (mouse e teclado)
   std::string steam_game;  // jogo que causou a pausa (se houver)
