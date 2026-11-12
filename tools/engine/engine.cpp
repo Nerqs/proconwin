@@ -6,6 +6,7 @@
 #include <windows.h>
 
 #include <chrono>
+#include <cstdio>
 #include <memory>
 
 #include "desktop_input.h"
@@ -47,6 +48,30 @@ ProconwinReport ToReport(const XboxState& s) {
 }
 
 }  // namespace
+
+std::string DiagnosticsText(const EngineStatus& st, const Settings& cfg) {
+  char buf[1024];
+  std::snprintf(
+      buf, sizeof(buf),
+      "Controle: %s (%s)\n"
+      "Driver: %s\n"
+      "Pausado pela Steam: %s | modo computador: %s\n"
+      "Relatórios lidos: %llu\n"
+      "Entregues ao driver: %llu | recusados: %llu (último erro %lu)\n"
+      "Jogador no XInput: %d\n"
+      "Botões do Xbox agora: %s | analógico esq.: %d, %d\n"
+      "Botões do Pro Controller agora: 0x%06X\n"
+      "Giroscópio: %d | Steam: %d",
+      st.connected ? "conectado" : "desconectado", st.usb ? "USB" : "Bluetooth",
+      st.driver_error.empty() ? "ok" : st.driver_error.c_str(), st.paused ? "sim" : "não",
+      st.pc_mode ? "ligado" : "desligado", static_cast<unsigned long long>(st.reports),
+      static_cast<unsigned long long>(st.submits_ok),
+      static_cast<unsigned long long>(st.submits_failed), st.last_error, st.player + 1,
+      XboxButtonsToString(st.xbox_buttons).c_str(), st.xbox_lx, st.xbox_ly,
+      static_cast<unsigned>(st.buttons), static_cast<int>(cfg.gyro),
+      static_cast<int>(cfg.steam));
+  return buf;
+}
 
 Engine::~Engine() { Stop(); }
 
@@ -127,6 +152,25 @@ void Engine::Run() {
   auto set_status = [&](auto&& fn) {
     std::lock_guard<std::mutex> l(mu_);
     fn(status_);
+  };
+
+  // Entrega um estado ao driver e conta o resultado (diagnóstico).
+  auto submit = [&](const ProconwinReport& r) {
+    bool ok = virt.Submit(r);
+    unsigned long err = ok ? 0 : GetLastError();
+    int player = virt.Player();
+    set_status([&](EngineStatus& s) {
+      ++s.reports;
+      if (ok) ++s.submits_ok;
+      else {
+        ++s.submits_failed;
+        s.last_error = err;
+      }
+      s.xbox_buttons = r.buttons;
+      s.xbox_lx = r.lx;
+      s.xbox_ly = r.ly;
+      s.player = player;
+    });
   };
 
   // Fecha o controle virtual e solta o Pro Controller.
@@ -374,7 +418,7 @@ void Engine::Run() {
       }
       double secs = std::chrono::duration<double>(now - t0).count();
       SendDesktopFrame(desk.Update(pc, cfg.pc_buttons, ToDesktopSettings(cfg), dt, secs));
-      virt.Submit(ProconwinReport{});
+      submit(ProconwinReport{});
       continue;
     }
 
@@ -387,7 +431,7 @@ void Engine::Run() {
       gyro_out.TakeMouseDelta(dx, dy);
       MoveMouse(dx, dy);
     }
-    virt.Submit(ToReport(xs));
+    submit(ToReport(xs));
   }
 
   release();

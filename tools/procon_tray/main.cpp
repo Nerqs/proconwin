@@ -41,6 +41,7 @@ enum MenuId : UINT {
   IdRecalibrate,
   IdAutostart,
   IdOpenConfig,
+  IdDiagnostics,
   IdEditButtons,
   IdNoProfile,
   IdPcMode,
@@ -281,6 +282,7 @@ void ShowMenu() {
   AppendMenuW(menu, MF_STRING | (AutostartEnabled() ? MF_CHECKED : 0), IdAutostart,
               L"Iniciar com o Windows");
   AppendMenuW(menu, MF_STRING, IdOpenConfig, L"Abrir a pasta das configurações");
+  AppendMenuW(menu, MF_STRING, IdDiagnostics, L"Diagnóstico...");
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(menu, MF_STRING, IdExit, L"Sair");
 
@@ -344,6 +346,17 @@ void OnCommand(UINT id) {
     case IdAutostart:
       SetAutostart(!AutostartEnabled());
       return;
+    case IdDiagnostics: {
+      std::wstring text = Widen(DiagnosticsText(g_engine.GetStatus(), g_engine.GetSettings()));
+      text += L"\n\nSegure um botão (por exemplo B) no controle e aperte Enter aqui para "
+              L"ver de novo com ele apertado.";
+      while (MessageBoxW(nullptr, text.c_str(), L"ProconWin - diagnóstico",
+                         MB_OKCANCEL | MB_ICONINFORMATION) == IDOK) {
+        text = Widen(DiagnosticsText(g_engine.GetStatus(), g_engine.GetSettings())) +
+               L"\n\nOK = atualizar, Cancelar = fechar.";
+      }
+      return;
+    }
     case IdOpenConfig:
       CreateDirectoryW(ConfigDir().c_str(), nullptr);
       ShellExecuteW(nullptr, L"open", ConfigDir().c_str(), nullptr, nullptr, SW_SHOWNORMAL);

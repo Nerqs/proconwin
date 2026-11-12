@@ -25,6 +25,15 @@ struct EngineStatus {
   bool pc_mode = false;  // modo computador ligado (mouse e teclado)
   std::string steam_game;  // jogo que causou a pausa (se houver)
   std::string driver_error;  // vazio se o driver está ok
+
+  // Diagnóstico (para descobrir onde a entrada para).
+  uint64_t reports = 0;         // relatórios do Pro Controller lidos
+  uint64_t submits_ok = 0;      // estados entregues ao driver
+  uint64_t submits_failed = 0;  // entregas recusadas pelo driver
+  unsigned long last_error = 0; // erro do Windows na última entrega recusada
+  uint16_t xbox_buttons = 0;    // botões do Xbox no último estado entregue
+  int16_t xbox_lx = 0, xbox_ly = 0;
+  int player = -1;              // jogador que o XInput deu ao controle virtual
 };
 
 enum class EngineEvent {
@@ -37,6 +46,9 @@ enum class EngineEvent {
   PcModeChanged,  // ligado ou desligado pelo controle (segurando Captura)
   Info,
 };
+
+// Texto do diagnóstico (bandeja e console mostram o mesmo).
+std::string DiagnosticsText(const EngineStatus& st, const Settings& cfg);
 
 class Engine {
  public:
