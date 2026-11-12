@@ -3,6 +3,8 @@
 | Pasta | Origem | Licença |
 | --- | --- | --- |
 | `vigemclient/` | [ViGEmClient](https://github.com/ViGEm/ViGEmClient) | MIT ([licença](licenses/ViGEmClient-LICENSE.txt)) |
+| [Dear ImGui](https://github.com/ocornut/imgui) v1.91.5 | baixado pelo CMake na compilação (desenha a janela) | MIT |
+| [hidapi](https://github.com/libusb/hidapi) 0.14.0 | baixado pelo CMake na compilação (leitura do controle) | BSD-3-Clause (uma das opções dele) |
 | `../driver/ProconWinBus/` | [ViGEmBus](https://github.com/nefarius/ViGEmBus), pasta `sys/` (commit d986e1d) | BSD-3-Clause ([licença](licenses/ViGEmBus-LICENSE.txt)) |
 
 Mudanças feitas: GUID da interface do barramento e GUID de rastreamento trocados, INF reescrito com o hardware ID `Root\ProconWinBus` e o serviço `ProconWinBus`, nomes e textos do recurso de versão trocados, e o projeto ajustado para o WDK atual. O resto do código está como no original.

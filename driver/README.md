@@ -16,7 +16,7 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
 
 ## Instalar
 
-1. Baixe o pacote `proconwin-windows-x64` na aba **Actions** do GitHub (abra a última execução verde e role até "Artifacts") e extraia numa pasta.
+1. Baixe o pacote [proconwin-windows-x64.zip](https://github.com/Nerqs/proconwin/releases/download/ultima-versao/proconwin-windows-x64.zip) (versão de teste, atualizada a cada mudança) e extraia numa pasta.
 2. Se você instalou o driver antigo (`ProconWinBus`) e ligou o modo de teste, remova antes:
    ```powershell
    pnputil /enum-drivers   # ache o oemNN.inf do ProconWinBus
@@ -29,8 +29,9 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
    ```
 4. Conecte o Pro Controller e abra o **`procon_tray.exe`**. Abre a janela do ProconWin, com tudo num lugar só:
    - em cima, o estado do controle e a bateria;
-   - à esquerda, um desenho do Pro Controller: o botão que você aperta no controle acende, e clicando num botão do desenho você escolhe a função dele (botão do Xbox, ou tecla no modo computador). Contorno laranja = botão fora do padrão;
-   - à direita, o perfil em uso, **Novo perfil...** (nome do jogo, começando dos botões atuais ou de um padrão), giroscópio e sensibilidade, e as opções.
+   - à esquerda, o desenho de um controle: o botão que você aperta acende em azul, os analógicos se mexem junto, e clicando num botão do desenho você escolhe a função dele. Em cima do desenho escolha **Nos jogos (Xbox)** ou **Modo computador** para editar um ou outro. Contorno laranja = botão fora do padrão;
+   - à direita, o perfil em uso, **Novo perfil** (nome do jogo, começando dos botões atuais ou de um padrão), giroscópio e sensibilidade, e as opções com interruptores;
+   - embaixo, **Diagnóstico** (atualiza sozinho), a pasta das configurações, **Fechar** e **Sair**.
 
    Fechar a janela deixa o programa rodando na bandeja, ao lado do relógio (pode estar escondido na setinha ^). Clique no ícone para abrir a janela de novo, ou com o botão direito para o menu rápido. **Sair** fecha de vez. Com "Iniciar com o Windows", ele abre só na bandeja.
 
@@ -46,7 +47,7 @@ Como o XInput enxerga o controle: o driver publica a mesma interface do `xusb22.
 
    As escolhas ficam salvas em `%APPDATA%\ProconWin\config.ini`.
 
-   **Editor de botões:** cada botão do Pro Controller tem uma caixa onde você escolhe para qual botão do Xbox ele vai (ou "nada"). A mudança vale na hora. Aperte um botão no controle e o nome dele fica azul e em negrito na janela, para achar rápido. Os botões "Padrão: pela posição" e "Padrão: pelo nome" voltam ao começo.
+   **Editor de botões:** clique num botão do desenho e escolha para qual botão do Xbox ele vai (ou "nada"). A mudança vale na hora. Passe o mouse por cima para ver a função atual. Os botões "Padrão: pela posição" e "Padrão: pelo nome" voltam ao começo.
 
    **Modo computador:** para usar o Windows com o controle, sem mouse. Ligue pelo menu **Modo computador** da bandeja ou **segurando Captura por 1 segundo** no controle (ele vibra para confirmar). Segurar de novo desliga. Enquanto está ligado, o controle de Xbox virtual fica parado, então os jogos não recebem nada em dobro.
 

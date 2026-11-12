@@ -1,5 +1,6 @@
 // Janela principal do ProconWin: estado do controle, todas as opções,
-// perfis e o desenho do Pro Controller para escolher a função de cada botão.
+// perfis e o desenho do controle para escolher a função de cada botão.
+// Desenhada com Dear ImGui sobre Direct3D 11 (window.cpp e ui/app_ui.cpp).
 #pragma once
 
 #ifndef NOMINMAX
@@ -23,7 +24,6 @@ struct AppHooks {
   std::function<void(procon::SteamMode)> set_steam_base;
   std::function<void()> recalibrate;
   std::function<void()> open_folder;
-  std::function<void()> diagnostics;
   std::function<void()> exit_app;
 };
 

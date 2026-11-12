@@ -201,7 +201,6 @@ void OpenWindow() {
     CreateDirectoryW(ConfigDir().c_str(), nullptr);
     ShellExecuteW(nullptr, L"open", ConfigDir().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
   };
-  h.diagnostics = [] { ShowDiagnostics(); };
   h.exit_app = [] { DestroyWindow(g_wnd); };
   ShowMainWindow(g_inst, h);
 }
