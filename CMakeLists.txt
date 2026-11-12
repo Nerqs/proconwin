@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
-project(proconwin LANGUAGES CXX)
+# Versão do ProconWin. A tag da release (v1.0.0) tem que ser igual.
+project(proconwin VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,6 +22,7 @@ add_library(procon_logic STATIC
   core/src/steam.cpp
   core/src/settings.cpp
   core/src/desktop.cpp
+  core/src/update.cpp
 )
 target_include_directories(procon_logic PUBLIC core/include)
 
@@ -90,9 +92,14 @@ if(PROCON_BUILD_TOOLS)
       tools/procon_tray/labels.cpp
       tools/procon_tray/window.cpp
       tools/procon_tray/ui/app_ui.cpp
+      tools/procon_tray/updater.cpp
+      tools/procon_tray/procon_tray.rc
       tools/procon_tray/procon_tray.manifest)
+    configure_file(tools/procon_tray/version.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/version.h)
+    target_include_directories(procon_tray PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated
+                               tools/procon_tray)
     target_link_libraries(procon_tray PRIVATE procon_engine imgui shell32 ole32 advapi32 user32
-                          gdi32 comctl32 dwmapi)
+                          gdi32 comctl32 dwmapi winhttp bcrypt)
 
     add_executable(procon_install tools/procon_install/main.cpp)
     target_link_libraries(procon_install PRIVATE setupapi newdev shell32)

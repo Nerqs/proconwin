@@ -73,10 +73,15 @@ finally {
 
 Write-Host '5/5 Instalando o driver...'
 & $installer install $inf
-if ($LASTEXITCODE -ne 0) {
+$code = $LASTEXITCODE
+if ($code -ne 0 -and $code -ne 3010) {
   Write-Host 'A instalação falhou. Mande a mensagem acima.' -ForegroundColor Red
   exit 1
 }
 
 Write-Host ''
-Write-Host 'Pronto. Agora conecte o Pro Controller e rode .\procon_virtual.exe' -ForegroundColor Green
+Write-Host 'Pronto. Agora conecte o Pro Controller e abra o procon_tray.exe' -ForegroundColor Green
+if ($code -eq 3010) {
+  Write-Host 'O Windows pediu para reiniciar o computador para terminar.' -ForegroundColor Yellow
+  exit 3010
+}

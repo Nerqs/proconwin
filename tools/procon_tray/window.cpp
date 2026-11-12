@@ -4,6 +4,7 @@
 
 #include <d3d11.h>
 #include <dwmapi.h>
+#include <shellapi.h>
 
 #include <algorithm>
 #include <string>
@@ -12,6 +13,7 @@
 #include "imgui_impl_dx11.h"
 #include "imgui_impl_win32.h"
 #include "storage.h"
+#include "updater.h"
 #include "ui/app_ui.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wp,
@@ -143,6 +145,9 @@ void BuildFonts() {
 
 // --- o modelo que a interface usa --------------------------------------------
 
+static_assert(static_cast<int>(updater::State::Failed) == ui::UpdateView::Failed,
+              "os dois enums têm que ter a mesma ordem");
+
 class Model : public ui::UiModel {
  public:
   Settings Get() override { return g_hooks.get(); }
@@ -157,6 +162,23 @@ class Model : public ui::UiModel {
   void OpenFolder() override { g_hooks.open_folder(); }
   void HideWindow() override { PostMessageW(g_hwnd, WM_CLOSE, 0, 0); }
   void Exit() override { g_hooks.exit_app(); }
+  ui::UpdateView Update() override {
+    updater::Status u = updater::Get();
+    ui::UpdateView v;
+    v.state = static_cast<ui::UpdateView::State>(u.state);
+    v.current = u.current;
+    v.latest = u.latest;
+    v.error = u.error;
+    v.progress = u.progress;
+    return v;
+  }
+  void CheckUpdate() override { updater::Check(); }
+  void StartUpdate() override { updater::Download(); }
+  void OpenReleasePage() override {
+    std::string url = updater::Get().page_url;
+    if (url.empty()) url = "https://github.com/Nerqs/proconwin/releases";
+    ShellExecuteW(nullptr, L"open", Widen(url).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+  }
   std::vector<std::string> ListProfiles() override { return ::ListProfiles(); }
   bool LoadProfile(const std::string& n, Settings& out) override { return ::LoadProfile(n, out); }
   bool SaveProfile(const std::string& n, const Settings& s) override {

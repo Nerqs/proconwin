@@ -664,6 +664,86 @@ void OptionsSection(UiModel& m, const Fonts& f) {
   if (OptionRow(f, "Iniciar com o Windows", u8"Abre só na bandeja, ao lado do relógio.", &v)) {
     m.SetAutostart(v);
   }
+  v = c.check_updates;
+  if (OptionRow(f, u8"Avisar quando sair versão nova", u8"Procura no GitHub quando o programa abre.",
+                &v)) {
+    c.check_updates = v;
+    m.Apply(c);
+    if (v) m.CheckUpdate();
+  }
+
+  // Versão e procurar agora.
+  UpdateView u = m.Update();
+  std::string line = u8"Versão " + u.current;
+  switch (u.state) {
+    case UpdateView::Checking: line += u8" · procurando versão nova..."; break;
+    case UpdateView::UpToDate: line += u8" · é a mais nova"; break;
+    case UpdateView::Available:
+    case UpdateView::Downloading:
+    case UpdateView::Ready: line += u8" · versão " + u.latest + u8" disponível"; break;
+    case UpdateView::Failed: line += u8" · não deu para procurar (" + u.error + ")"; break;
+    default: break;
+  }
+  Muted(line.c_str());
+  ImGui::BeginDisabled(u.state == UpdateView::Checking || u.state == UpdateView::Downloading ||
+                       u.state == UpdateView::Ready);
+  if (ImGui::Button(u8"Procurar atualização agora")) m.CheckUpdate();
+  ImGui::EndDisabled();
+}
+
+// Faixa azul embaixo do título quando há versão nova.
+void UpdateBanner(UiModel& m, const Fonts& f, float scale) {
+  UpdateView u = m.Update();
+  bool show = !u.latest.empty() &&
+              (u.state == UpdateView::Available || u.state == UpdateView::Downloading ||
+               u.state == UpdateView::Ready || u.state == UpdateView::Failed);
+  if (!show) return;
+  float h = ImGui::GetFrameHeight() + S(20, scale);
+  ImGui::PushStyleColor(ImGuiCol_ChildBg, V(79, 140, 255, 38));
+  ImGui::PushStyleColor(ImGuiCol_Border, V(79, 140, 255, 120));
+  ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, ImGui::GetStyle().FrameRounding * 2);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(S(16, scale), S(10, scale)));
+  ImGui::BeginChild("##update", ImVec2(0, h),
+                    ImGuiChildFlags_Borders | ImGuiChildFlags_AlwaysUseWindowPadding,
+                    ImGuiWindowFlags_NoScrollbar);
+  float text_y = ImGui::GetCursorPosY() + (ImGui::GetFrameHeight() - ImGui::GetTextLineHeight()) / 2;
+  ImGui::SetCursorPosY(text_y);
+  ImGui::PushFont(f.bold);
+  std::string title = u8"Versão " + u.latest + u8" disponível";
+  ImGui::TextUnformatted(title.c_str());
+  ImGui::PopFont();
+  ImGui::SameLine();
+  ImGui::SetCursorPosY(text_y);
+  std::string sub;
+  if (u.state == UpdateView::Downloading) {
+    sub = u8"Baixando... " + std::to_string(static_cast<int>(u.progress * 100)) + "%";
+  } else if (u.state == UpdateView::Ready) {
+    sub = u8"Abrindo o instalador. O ProconWin fecha e abre de novo sozinho.";
+  } else if (u.state == UpdateView::Failed) {
+    sub = u8"Não deu certo: " + u.error;
+  } else {
+    sub = u8"(você está na " + u.current + u8"). Suas configurações e perfis continuam.";
+  }
+  Muted(sub.c_str());
+
+  const char* go = u.state == UpdateView::Failed ? "Tentar de novo" : "Atualizar agora";
+  const char* notes = "Ver novidades";
+  const ImGuiStyle& st = ImGui::GetStyle();
+  float w_go = ImGui::CalcTextSize(go).x + st.FramePadding.x * 2;
+  float w_notes = ImGui::CalcTextSize(notes).x + st.FramePadding.x * 2;
+  ImGui::SameLine(ImGui::GetWindowWidth() - st.WindowPadding.x - w_go - w_notes - st.ItemSpacing.x);
+  float btn_y = text_y - (ImGui::GetFrameHeight() - ImGui::GetTextLineHeight()) / 2;
+  ImGui::SetCursorPosY(btn_y);
+  if (ImGui::Button(notes)) m.OpenReleasePage();
+  ImGui::SameLine();
+  ImGui::SetCursorPosY(btn_y);
+  bool busy = u.state == UpdateView::Downloading || u.state == UpdateView::Ready;
+  ImGui::BeginDisabled(busy);
+  if (AccentButton(go)) m.StartUpdate();
+  ImGui::EndDisabled();
+  ImGui::EndChild();
+  ImGui::PopStyleVar(2);
+  ImGui::PopStyleColor(2);
 }
 
 void Modals(UiModel& m, const Fonts& f, float scale) {
@@ -849,6 +929,7 @@ void DrawApp(UiModel& m, const Fonts& f, float scale) {
   ImGui::PopStyleVar(2);
 
   Header(m, f, scale);
+  UpdateBanner(m, f, scale);
 
   float footer = ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.y * 2;
   ImVec2 avail = ImGui::GetContentRegionAvail();

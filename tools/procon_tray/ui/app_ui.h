@@ -15,6 +15,14 @@ struct ImFont;
 
 namespace ui {
 
+// Estado da atualização (espelha o updater do app).
+struct UpdateView {
+  enum State { Idle, Checking, UpToDate, Available, Downloading, Ready, Failed };
+  State state = Idle;
+  std::string current, latest, error;
+  float progress = 0;
+};
+
 // O que a janela precisa do resto do programa.
 class UiModel {
  public:
@@ -32,6 +40,11 @@ class UiModel {
   virtual void OpenFolder() = 0;
   virtual void HideWindow() = 0;
   virtual void Exit() = 0;
+
+  virtual UpdateView Update() = 0;
+  virtual void CheckUpdate() = 0;
+  virtual void StartUpdate() = 0;  // baixa e instala a versão nova
+  virtual void OpenReleasePage() = 0;
 
   virtual std::vector<std::string> ListProfiles() = 0;
   virtual bool LoadProfile(const std::string& name, procon::Settings& out) = 0;

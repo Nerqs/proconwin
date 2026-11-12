@@ -17,6 +17,7 @@
 #include "engine.h"
 #include "procon/settings.h"
 #include "storage.h"
+#include "updater.h"
 #include "window.h"
 
 using namespace procon;
@@ -26,6 +27,8 @@ namespace {
 constexpr UINT kTrayMsg = WM_APP + 1;   // eventos do ícone
 constexpr UINT kEngineMsg = WM_APP + 2; // eventos do motor (lParam = EventMsg*)
 constexpr UINT kShowMsg = WM_APP + 3;   // outra cópia pediu para mostrar a janela
+constexpr UINT kUpdateMsg = WM_APP + 4; // a atualização mudou de estado (wParam = updater::State)
+constexpr int kUpdateEverySeconds = 24 * 60 * 60;
 constexpr UINT_PTR kTimerId = 1;
 constexpr UINT kIconId = 1;
 constexpr wchar_t kRunKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
@@ -71,6 +74,8 @@ SteamMode g_steam_base = SteamMode::Auto;  // modo quando "Estou usando a Steam"
 bool g_low_battery_warned = false;
 HINSTANCE g_inst = nullptr;
 std::vector<std::string> g_profiles;  // nomes mostrados no último menu
+int g_seconds_to_update_check = kUpdateEverySeconds;
+std::string g_update_notified;  // versão nova já avisada no balão
 
 bool AutostartEnabled() {
   HKEY key;
@@ -123,7 +128,11 @@ void AddTrayIcon() {
   nid.uID = kIconId;
   nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
   nid.uCallbackMessage = kTrayMsg;
-  nid.hIcon = LoadIconW(nullptr, MAKEINTRESOURCEW(32512));  // IDI_APPLICATION
+  // Ícone do programa (recurso 1), no tamanho pequeno da bandeja.
+  nid.hIcon = static_cast<HICON>(LoadImageW(g_inst, MAKEINTRESOURCEW(1), IMAGE_ICON,
+                                            GetSystemMetrics(SM_CXSMICON),
+                                            GetSystemMetrics(SM_CYSMICON), 0));
+  if (!nid.hIcon) nid.hIcon = LoadIconW(nullptr, MAKEINTRESOURCEW(32512));  // IDI_APPLICATION
   wcscpy_s(nid.szTip, L"ProconWin");
   Shell_NotifyIconW(NIM_ADD, &nid);
 }
@@ -177,6 +186,22 @@ void ShowDiagnostics() {
                      MB_OKCANCEL | MB_ICONINFORMATION) == IDOK) {
     text = Widen(DiagnosticsText(g_engine.GetStatus(), g_engine.GetSettings())) +
            L"\n\nOK = atualizar, Cancelar = fechar.";
+  }
+}
+
+void OnUpdateState(updater::State st) {
+  updater::Status u = updater::Get();
+  if (st == updater::State::Available && u.latest != g_update_notified) {
+    g_update_notified = u.latest;
+    Notify(L"Versão " + Widen(u.latest) +
+           L" do ProconWin disponível. Clique aqui e depois em \"Atualizar agora\".");
+  } else if (st == updater::State::Ready) {
+    // O instalador fecha este programa sozinho; sair antes evita a pergunta.
+    if (updater::RunInstaller()) {
+      DestroyWindow(g_wnd);
+    } else {
+      Notify(L"Não consegui abrir o instalador da versão nova.", true);
+    }
   }
 }
 
@@ -443,11 +468,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
   switch (msg) {
     case kTrayMsg:
       // Clique esquerdo abre a janela; direito mostra o menu.
-      if (LOWORD(lp) == WM_LBUTTONUP) OpenWindow();
+      if (LOWORD(lp) == WM_LBUTTONUP || LOWORD(lp) == NIN_BALLOONUSERCLICK) OpenWindow();
       else if (LOWORD(lp) == WM_RBUTTONUP || LOWORD(lp) == WM_CONTEXTMENU) ShowMenu();
       return 0;
     case kShowMsg:
       OpenWindow();
+      return 0;
+    case kUpdateMsg:
+      OnUpdateState(static_cast<updater::State>(wp));
       return 0;
     case kEngineMsg: {
       auto* m = reinterpret_cast<EventMsg*>(lp);
@@ -461,6 +489,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_TIMER:
       UpdateTip();
       CheckBattery();
+      // Com o programa aberto por dias, procura versão nova uma vez por dia.
+      if (--g_seconds_to_update_check <= 0) {
+        g_seconds_to_update_check = kUpdateEverySeconds;
+        if (g_cfg.check_updates) updater::Check();
+      }
       return 0;
     case WM_DESTROY:
       KillTimer(hwnd, kTimerId);
@@ -517,6 +550,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE, LPSTR cmdline, int) {
     if (!PostMessageW(wnd, kEngineMsg, 0, reinterpret_cast<LPARAM>(m))) delete m;
   });
   UpdateTip();
+  updater::Init(g_wnd, kUpdateMsg);
+  if (g_cfg.check_updates) updater::Check();
   if (!tray_only) OpenWindow();
 
   MSG msg;

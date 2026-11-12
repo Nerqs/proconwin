@@ -29,6 +29,7 @@ struct Settings {
   SteamMode steam = SteamMode::Auto;
   bool home_light = true;
   bool rumble = true;  // vibração vinda dos jogos (e o aviso do modo computador)
+  bool check_updates = true;  // o app procura versão nova no GitHub ao abrir
   // Modo computador: o controle vira mouse e teclado, e o controle de Xbox
   // virtual fica parado. É global (não muda com o perfil).
   bool pc_mode = false;

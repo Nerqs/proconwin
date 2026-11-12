@@ -4,6 +4,8 @@
 //   procon_install install <caminho\para\ProconWinXusb.inf>
 //   procon_install uninstall
 //
+// Retorna 0 se deu certo, 3010 se deu certo mas precisa reiniciar o PC.
+//
 // O "install" cria o dispositivo raiz Root\ProconWinXusb (se ainda não
 // existir) e instala o driver nele, como o devcon faz. Normalmente ele é
 // chamado pelo driver\instalar.ps1, que antes assina o pacote.
@@ -108,7 +110,8 @@ int Install(const std::wstring& inf_arg) {
     return 1;
   }
   std::printf("Driver instalado.%s\n", reboot ? " Reinicie o computador para concluir." : "");
-  return 0;
+  // 3010 = ERROR_SUCCESS_REBOOT_REQUIRED (o instalador entende e pede para reiniciar).
+  return reboot ? 3010 : 0;
 }
 
 int Uninstall() {
