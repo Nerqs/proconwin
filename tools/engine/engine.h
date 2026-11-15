@@ -16,9 +16,11 @@
 namespace procon {
 
 struct EngineStatus {
-  bool connected = false;  // Pro Controller conectado e ativo
+  bool connected = false;  // controle físico conectado e ativo
   bool usb = false;
+  std::string pad_name;  // "Pro Controller", "8BitDo Ultimate 2"
   int battery = 0;  // 0 a 8 (8 = cheia)
+  bool battery_known = true;  // false se o controle não informa a bateria
   bool charging = false;
   uint32_t buttons = 0;  // botões do Pro Controller apertados agora (bits Btn*)
   float lx = 0, ly = 0, rx = 0, ry = 0;  // analógicos agora (-1 a 1, Y para cima)

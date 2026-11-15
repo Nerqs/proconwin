@@ -97,6 +97,10 @@ struct InputState {
   int raw_lx = 0, raw_ly = 0, raw_rx = 0, raw_ry = 0;  // 0 a 4095
   float lx = 0, ly = 0, rx = 0, ry = 0;                // -1.0 a 1.0
   std::array<ImuSample, 3> imu{};
+  int imu_count = 3;  // amostras válidas em imu (o Pro Controller manda 3)
+  // Gatilhos analógicos (0 a 255). -1 = digitais, como ZL/ZR do Pro Controller.
+  int lt = -1, rt = -1;
+  bool battery_known = true;  // false se o controle não informa a bateria
 };
 
 // Lê dois valores de 12 bits de 3 bytes (formato dos analógicos).

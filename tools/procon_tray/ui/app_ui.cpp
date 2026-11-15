@@ -409,9 +409,10 @@ StatusLine Describe(const EngineStatus& st) {
     if (st.steam_game.empty()) return {u8"Pausado · a Steam está com o controle", kWarn};
     return {u8"Pausado · " + st.steam_game + " (Steam)", kWarn};
   }
-  if (!st.connected) return {u8"Esperando o Pro Controller", Rgb(150, 157, 170)};
+  if (!st.connected) return {u8"Esperando o controle", Rgb(150, 157, 170)};
   std::string s = st.usb ? u8"Conectado · USB" : u8"Conectado · Bluetooth";
-  if (!st.usb || st.charging) {
+  if (!st.pad_name.empty() && st.pad_name != "Pro Controller") s += u8" · " + st.pad_name;
+  if (st.battery_known && (!st.usb || st.charging)) {
     s += u8" · bateria " + std::to_string(st.battery * 100 / 8) + "%";
     if (st.charging) s += " (carregando)";
   }

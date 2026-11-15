@@ -18,6 +18,7 @@ endif()
 add_library(procon_logic STATIC
   core/src/protocol.cpp
   core/src/mapping.cpp
+  core/src/eightbitdo.cpp
   core/src/gyro.cpp
   core/src/steam.cpp
   core/src/settings.cpp
@@ -42,7 +43,7 @@ if(PROCON_BUILD_TOOLS)
   FetchContent_MakeAvailable(hidapi)
 
   # Acesso ao controle real via hidapi.
-  add_library(procon_device STATIC core/src/controller.cpp)
+  add_library(procon_device STATIC core/src/controller.cpp core/src/gamepad.cpp)
   target_link_libraries(procon_device PUBLIC procon_logic hidapi::hidapi)
 
   add_executable(procon_proto tools/procon_proto/main.cpp)
