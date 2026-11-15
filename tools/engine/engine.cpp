@@ -5,6 +5,7 @@
 #endif
 #include <windows.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <memory>
@@ -12,7 +13,7 @@
 #include "desktop_input.h"
 #include "processes.h"
 #include "procon/desktop.h"
-#include "procon/controller.h"
+#include "procon/gamepad.h"
 #include "procon/gyro.h"
 #include "procon/mapping.h"
 #include "procon/protocol.h"
@@ -53,15 +54,16 @@ std::string DiagnosticsText(const EngineStatus& st, const Settings& cfg) {
   char buf[1024];
   std::snprintf(
       buf, sizeof(buf),
-      "Controle: %s (%s)\n"
+      "Controle: %s %s (%s)\n"
       "Driver: %s\n"
       "Pausado pela Steam: %s | modo computador: %s\n"
       "Relatórios lidos: %llu\n"
       "Entregues ao driver: %llu | recusados: %llu (último erro %lu)\n"
       "Jogador no XInput: %d\n"
       "Botões do Xbox agora: %s | analógico esq.: %d, %d\n"
-      "Botões do Pro Controller agora: 0x%06X\n"
+      "Botões do controle agora: 0x%06X\n"
       "Giroscópio: %d | Steam: %d",
+      st.pad_name.empty() ? "controle" : st.pad_name.c_str(),
       st.connected ? "conectado" : "desconectado", st.usb ? "USB" : "Bluetooth",
       st.driver_error.empty() ? "ok" : st.driver_error.c_str(), st.paused ? "sim" : "não",
       st.pc_mode ? "ligado" : "desligado", static_cast<unsigned long long>(st.reports),
@@ -122,7 +124,7 @@ void Engine::Run() {
   GyroCalibrator gyro_cal;
   GyroOutput gyro_out(GyroSettings{});
 
-  std::unique_ptr<Controller> pad;
+  std::unique_ptr<Gamepad> pad;
   XusbFeeder virt;
   bool steam_game = false;
   std::string steam_game_name;
@@ -133,9 +135,7 @@ void Engine::Run() {
   auto next_open_try = Clock::now();
   auto next_driver_try = Clock::now();
 
-  constexpr float kDeadzone = 0.08f;
   InputState st;
-  uint8_t buf[64];
   uint32_t prev_buttons = 0;
   auto last_report = Clock::now();  // último relatório completo
   int silent_resets = 0;  // vezes seguidas que o controle ficou mudo
@@ -178,7 +178,7 @@ void Engine::Run() {
   auto release = [&]() {
     virt.Close();
     if (pad) {
-      if (rumbling) pad->SendRumble(kRumbleNeutral, kRumbleNeutral);
+      if (rumbling) pad->Rumble(0, 0);
       pad.reset();
     }
     rumbling = false;
@@ -256,11 +256,11 @@ void Engine::Run() {
         Sleep(100);
         continue;
       }
-      auto p = std::make_unique<Controller>();
       std::string err;
-      if (!p->Open(err) || !p->Initialize(err)) {
+      auto p = OpenGamepad(err);
+      if (!p || !p->Initialize(err)) {
         if (!waiting_msg_shown) {
-          Emit(EngineEvent::Info, "Esperando o Pro Controller (" + err + ")...");
+          Emit(EngineEvent::Info, "Esperando o controle (" + err + ")...");
           waiting_msg_shown = true;
         }
         next_open_try = now + std::chrono::seconds(1);
@@ -271,12 +271,15 @@ void Engine::Run() {
       waiting_msg_shown = false;
       last_report = Clock::now();
       bool usb = pad->IsUsb();
+      std::string name = pad->Name();
       set_status([&](EngineStatus& s) {
         s.connected = true;
         s.usb = usb;
+        s.pad_name = name;
+        s.battery_known = true;
       });
       Emit(EngineEvent::Connected,
-           std::string("Pro Controller conectado (") + (usb ? "USB" : "Bluetooth") + ").");
+           name + " conectado (" + (usb ? "USB" : "Bluetooth") + ").");
     }
 
     // Controle de Xbox 360 virtual (aparece no Windows a partir daqui).
@@ -295,11 +298,11 @@ void Engine::Run() {
       }
       driver_error_shown = false;
       set_status([](EngineStatus& s) { s.driver_error.clear(); });
-      Emit(EngineEvent::Info, "O Pro Controller agora é um controle de Xbox 360.");
+      Emit(EngineEvent::Info, "O " + pad->Name() + " agora é um controle de Xbox 360.");
     }
 
-    int n = pad->ReadReport(buf, sizeof(buf), 100);
-    if (n < 0) {
+    int got = pad->Poll(st, 100);
+    if (got < 0) {
       release();
       Emit(EngineEvent::Disconnected, "O controle desconectou. Esperando ele voltar...");
       waiting_msg_shown = true;
@@ -308,31 +311,29 @@ void Engine::Run() {
     }
     now = Clock::now();
 
-    // Rumble vindo do jogo: motor forte = frequência baixa, fraco = alta.
-    // Com a vibração desligada, o pedido do jogo é ignorado.
+    // Rumble vindo do jogo. Com a vibração desligada, o pedido é ignorado.
     uint8_t big_m = cfg.rumble ? virt.LargeMotor() : 0;
     uint8_t little_m = cfg.rumble ? virt.SmallMotor() : 0;
     if ((big_m || little_m) && now - last_rumble > std::chrono::milliseconds(15)) {
-      auto side = EncodeRumble(320.0f, little_m / 255.0f, 160.0f, big_m / 255.0f);
-      pad->SendRumble(side, side);
+      pad->Rumble(big_m, little_m);
       last_rumble = now;
       rumbling = true;
     } else if (!big_m && !little_m && rumbling) {
-      pad->SendRumble(kRumbleNeutral, kRumbleNeutral);
+      pad->Rumble(0, 0);
       rumbling = false;
     }
 
     // LED do jogador que o XInput atribuiu ao controle virtual.
     int player = virt.Player();
     if (player >= 0 && player != current_player) {
-      pad->SetPlayerLights(static_cast<uint8_t>(1u << (player % 4)));
+      pad->SetPlayer(player);
       current_player = player;
     }
 
     // O controle responde, mas não manda mais o relatório completo (0x30):
     // outro programa (um jogo que lê o controle sozinho, por exemplo) mudou o
     // modo dele. Configura de novo; se não voltar, reconecta do zero.
-    if ((n == 0 || buf[0] != kInputFull) && now - last_report > std::chrono::seconds(2)) {
+    if (got == 0 && pad->NeedsWatchdog() && now - last_report > std::chrono::seconds(2)) {
       std::string err;
       ++silent_resets;
       if (silent_resets <= 2 && pad->Initialize(err)) {
@@ -348,11 +349,11 @@ void Engine::Run() {
       last_report = Clock::now();
       continue;
     }
-    if (n == 0 || buf[0] != kInputFull) continue;
-    if (!ParseFullReport(buf, static_cast<size_t>(n), pad->Cal(), kDeadzone, st)) continue;
+    if (got == 0) continue;
 
     set_status([&](EngineStatus& s) {
       s.battery = st.battery_level;
+      s.battery_known = st.battery_known;
       s.charging = st.charging;
       s.buttons = st.buttons;
       s.lx = st.lx;
@@ -365,9 +366,10 @@ void Engine::Run() {
     float dt = std::chrono::duration<float>(now - last_report).count();
     last_report = now;
     if (dt <= 0 || dt > 0.1f) dt = 1.0f / 66.0f;
-    for (const auto& s : st.imu) {
-      gyro_cal.AddSample(s, dt / 3);
-      gyro_out.AddSample(gyro_cal.Correct(s), dt / 3);
+    const int imu_n = std::min<int>(st.imu_count, static_cast<int>(st.imu.size()));
+    for (int i = 0; i < imu_n; ++i) {
+      gyro_cal.AddSample(st.imu[i], dt / imu_n);
+      gyro_out.AddSample(gyro_cal.Correct(st.imu[i]), dt / imu_n);
     }
 
     uint32_t pressed = st.buttons & ~prev_buttons;
@@ -396,10 +398,9 @@ void Engine::Run() {
       }
       if (pad && cfg.rumble) {
         // Vibra uma vez para confirmar sem precisar olhar a tela.
-        pad->SendRumble(EncodeRumble(320.0f, 0.5f, 160.0f, 0.5f),
-                        EncodeRumble(320.0f, 0.5f, 160.0f, 0.5f));
+        pad->Rumble(128, 128);
         Sleep(80);
-        pad->SendRumble(kRumbleNeutral, kRumbleNeutral);
+        pad->Rumble(0, 0);
       }
       Emit(EngineEvent::PcModeChanged,
            pc ? "Modo computador ligado: o controle é mouse e teclado."
@@ -413,14 +414,18 @@ void Engine::Run() {
       home_held = true;
       home_since = now;
     } else if (now - home_since >= std::chrono::seconds(3)) {
-      if (pad->IsUsb()) {
-        Emit(EngineEvent::Info,
-             "No cabo o controle não desliga (o USB mantém ele ligado). "
-             "Desconecte o cabo para desligar.");
+      if (!pad->CanPowerOff()) {
+        // O 8BitDo desliga sozinho (segurando o HOME dele) e não aceita o
+        // comando; não avisa nada, porque o próprio controle já faz isso.
+        if (pad->IsUsb()) {
+          Emit(EngineEvent::Info,
+               "No cabo o controle não desliga (o USB mantém ele ligado). "
+               "Desconecte o cabo para desligar.");
+        }
         home_held = false;
         home_since = now;
       } else {
-        if (rumbling) pad->SendRumble(kRumbleNeutral, kRumbleNeutral);
+        if (rumbling) pad->Rumble(0, 0);
         rumbling = false;
         pad->PowerOff();
         release();

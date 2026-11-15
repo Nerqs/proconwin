@@ -7,6 +7,7 @@ Suporte nativo ao Pro Controller do Switch no Windows: o controle aparece como u
 | Controle | Estado |
 | --- | --- |
 | Pro Controller (Switch 1), USB e Bluetooth | ✅ Pronto (versão 1.0) |
+| 8BitDo Ultimate 2 Wireless, Bluetooth (pelo receptor 2.4G ele já funciona sozinho) | 🧪 Em teste |
 | Joy-Con (Switch 1), sozinhos ou em par | Planejado |
 | Pro Controller e Joy-Con do Switch 2 | Planejado |
 | Controles do Nintendo Switch Online (SNES, N64, Mega Drive...) | Planejado |

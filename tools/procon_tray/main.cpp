@@ -111,10 +111,11 @@ std::wstring StatusText() {
     if (st.steam_game.empty()) return L"Pausado: a Steam está com o controle";
     return L"Pausado: " + Widen(st.steam_game) + L" (Steam)";
   }
-  if (!st.connected) return L"Esperando o Pro Controller";
+  if (!st.connected) return L"Esperando o controle";
   std::wstring s = st.usb ? L"Conectado (USB)" : L"Conectado (Bluetooth)";
+  if (!st.pad_name.empty() && st.pad_name != "Pro Controller") s += L" - " + Widen(st.pad_name);
   if (st.pc_mode) s += L" - modo computador";
-  if (!st.usb || st.charging) {
+  if (st.battery_known && (!st.usb || st.charging)) {
     s += L" - bateria " + std::to_wstring(st.battery * 100 / 8) + L"%";
     if (st.charging) s += L", carregando";
   }
@@ -448,13 +449,13 @@ void OnEngineEvent(const EventMsg& m) {
 
 void CheckBattery() {
   EngineStatus st = g_engine.GetStatus();
-  if (!st.connected || st.usb || st.charging) {
+  if (!st.connected || st.usb || st.charging || !st.battery_known) {
     if (st.charging) g_low_battery_warned = false;
     return;
   }
   if (st.battery <= 2 && !g_low_battery_warned) {
     g_low_battery_warned = true;
-    Notify(L"Bateria do Pro Controller baixa. Conecte o cabo para carregar.", true);
+    Notify(L"Bateria do controle baixa. Conecte o cabo para carregar.", true);
   }
 }
 

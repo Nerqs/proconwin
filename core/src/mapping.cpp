@@ -64,8 +64,24 @@ int16_t AxisToXbox(float v) {
 
 XboxState MapToXbox(const InputState& in, const ButtonMap& map) {
   XboxState out;
+  // Gatilho analógico (8BitDo): se ZL/ZR vão para LT/RT, passa o valor
+  // inteiro em vez de só 0 ou 255.
+  auto analog = [&](Source s, int v) {
+    if (v < 0) return false;
+    uint8_t val = static_cast<uint8_t>(std::clamp(v, 0, 255));
+    Target t = map[Idx(s)];
+    if (t == Target::LT) out.left_trigger = std::max(out.left_trigger, val);
+    else if (t == Target::RT) out.right_trigger = std::max(out.right_trigger, val);
+    else return false;
+    return true;
+  };
+  const bool zl_analog = analog(Source::ZL, in.lt);
+  const bool zr_analog = analog(Source::ZR, in.rt);
+
   for (size_t i = 0; i < map.size(); ++i) {
     if (!(in.buttons & kSourceBits[i])) continue;
+    if (i == Idx(Source::ZL) && zl_analog) continue;
+    if (i == Idx(Source::ZR) && zr_analog) continue;
     switch (map[i]) {
       case Target::None: break;
       case Target::A: out.buttons |= xbtn::A; break;

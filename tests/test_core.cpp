@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "procon/eightbitdo.h"
 #include "procon/gyro.h"
 #include "procon/mapping.h"
 #include "procon/protocol.h"
@@ -370,11 +371,73 @@ static void TestUpdate() {
   CHECK(!ParseLatestRelease(R"({"message":"Not Found"})", r));
 }
 
+static void Test8BitDo() {
+  // Relatório do firmware novo (34 bytes) com tudo solto.
+  uint8_t r[34] = {};
+  r[0] = 0x01;
+  r[1] = 0x08;  // direcional solto
+  r[2] = r[3] = r[4] = r[5] = 0x7F;
+  r[14] = 80;  // 80% de bateria, sem carregar
+  r[21 + 4] = 0x00;
+  r[21 + 5] = 0x40;  // giroscópio Z = 16384 (~1000 graus/s)
+  r[15 + 4] = 0x00;
+  r[15 + 5] = 0x10;  // acelerômetro Z = 4096 (1 G)
+  InputState st;
+  CHECK(Parse8BitDoReport(r, sizeof(r), 0.08f, st));
+  CHECK(st.buttons == 0);
+  CHECK(Near(st.lx, 0) && Near(st.ly, 0));
+  CHECK(st.lt == 0 && st.rt == 0);
+  CHECK(st.battery_known && st.battery_level == 6 && !st.charging);
+  CHECK(st.imu_count == 1);
+  CHECK(Near(st.imu[0].accel_g[2], 1.0f));
+  CHECK(Near(st.imu[0].gyro_dps[2], 1000.0f, 1.0f));
+
+  // Botão de baixo (Xbox A) vira o B da Nintendo; o mapa padrão manda para o A.
+  r[8] = 0x01 | 0x40;  // baixo + LB
+  r[9] = 0x08 | 0x10;  // start + home
+  r[1] = 2;            // direita
+  r[2] = 0xFF;         // analógico esquerdo todo para a direita
+  r[3] = 0x00;         // e todo para cima
+  r[7] = 200;          // gatilho esquerdo quase todo
+  r[6] = 20;           // gatilho direito de leve (não conta como apertado)
+  CHECK(Parse8BitDoReport(r, sizeof(r), 0.08f, st));
+  CHECK(st.buttons == (BtnB | BtnL | BtnPlus | BtnHome | BtnRight | BtnZL));
+  CHECK(Near(st.lx, 1) && Near(st.ly, 1));
+  XboxState xs = MapToXbox(st, DefaultPositionalMap());
+  CHECK(xs.buttons == (xbtn::A | xbtn::LeftShoulder | xbtn::Start | xbtn::Guide |
+                       xbtn::DpadRight));
+  CHECK(xs.left_trigger == 200);
+  CHECK(xs.right_trigger == 20);  // analógico passa mesmo abaixo do limite
+  CHECK(xs.lx == 32767 && xs.ly == 32767);
+
+  // ZL remapeado para A: vira botão digital.
+  ButtonMap m = DefaultPositionalMap();
+  m[static_cast<size_t>(Source::ZL)] = Target::A;
+  xs = MapToXbox(st, m);
+  CHECK(xs.left_trigger == 0);
+  CHECK((xs.buttons & xbtn::A) != 0);
+
+  // Firmware antigo (12 bytes): sem bateria nem giroscópio.
+  CHECK(Parse8BitDoReport(r, 12, 0.08f, st));
+  CHECK(!st.battery_known && st.imu_count == 0);
+
+  // Outro tipo de relatório é ignorado.
+  r[0] = 0x05;
+  CHECK(!Parse8BitDoReport(r, sizeof(r), 0.08f, st));
+
+  // Pro Controller continua com gatilhos digitais.
+  InputState pro;
+  pro.buttons = BtnZR;
+  xs = MapToXbox(pro, DefaultPositionalMap());
+  CHECK(xs.right_trigger == 255 && xs.left_trigger == 0);
+}
+
 int main() {
   TestRumble();
   TestSticks();
   TestParse();
   TestMapping();
+  Test8BitDo();
   TestGyroCalibration();
   TestGyroMouse();
   TestGyroStick();
